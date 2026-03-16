@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 
-type LeaderboardResultRow = {
+type ResultRow = {
   id: number;
   student_id: string;
   score: number;
@@ -13,57 +13,79 @@ type LeaderboardResultRow = {
   quiz_id?: number | null;
 };
 
-type ProfileRow = {
-  username: string | null;
-  level: string | null;
-};
-
 export default function DashboardPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState('');
-  const [studentName, setStudentName] = useState('');
-  const [profileLevel, setProfileLevel] = useState('');
-  const [results, setResults] = useState<LeaderboardResultRow[]>([]);
+  const [results, setResults] = useState<ResultRow[] | undefined>([]);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const loadUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  const safeResults: ResultRow[] = Array.isArray(results) ? results : [];
 
-      if (!user?.id) {
-        router.push('/login');
+  // ✅ LOGIN GUARD
+  useEffect(() => {
+    const sid = (localStorage.getItem('student_id') || '').trim();
+    if (!sid) {
+      router.push('/login');
+      return;
+    }
+    setStudentId(sid);
+  }, [router]);
+
+  // ✅ LOAD MY RECENT RESULTS
+  useEffect(() => {
+    if (!studentId) return;
+
+    const load = async () => {
+      setLoading(true);
+      setError('');
+
+      const { data, error } = await supabase
+        .from('results')
+        .select('id, student_id, score, created_at, quiz_id')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        setError(error.message);
+        setResults([]);
+        setLoading(false);
         return;
       }
 
-      setStudentId(user.id);
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('username, level')
-        .eq('id', user.id)
-        .single();
-
-      const profile = profileData as ProfileRow | null;
-
-      setStudentName(profile?.username || 'Student');
-      setProfileLevel(profile?.level || 'A1');
+      setResults(Array.isArray(data) ? (data as ResultRow[]) : []);
+      setLoading(false);
     };
 
-    loadUser();
-  }, [router]);
+    load();
+  }, [studentId]);
 
-  const loadResults = async (sid: string) => {
+  const testsCompleted = safeResults.length;
+
+  const avgScore = useMemo(() => {
+    if (!safeResults.length) return 0;
+    const sum = safeResults.reduce((acc, r) => acc + (Number(r.score) || 0), 0);
+    return Math.round((sum / safeResults.length) * 10) / 10;
+  }, [safeResults]);
+
+  const level = useMemo(() => {
+    if (avgScore >= 85) return 'B1';
+    if (avgScore >= 65) return 'A2';
+    return 'A1';
+  }, [avgScore]);
+
+  const refresh = async () => {
+    if (!studentId) return;
+
     setLoading(true);
     setError('');
 
     const { data, error } = await supabase
-      .from('leaderboard')
+      .from('results')
       .select('id, student_id, score, created_at, quiz_id')
-      .eq('student_id', sid)
+      .eq('student_id', studentId)
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -74,26 +96,8 @@ export default function DashboardPage() {
       return;
     }
 
-    setResults(Array.isArray(data) ? (data as LeaderboardResultRow[]) : []);
+    setResults(Array.isArray(data) ? (data as ResultRow[]) : []);
     setLoading(false);
-  };
-
-  useEffect(() => {
-    if (!studentId) return;
-    loadResults(studentId);
-  }, [studentId]);
-
-  const testsCompleted = results.length;
-
-  const avgScore = useMemo(() => {
-    if (!results.length) return 0;
-    const sum = results.reduce((acc, r) => acc + (Number(r.score) || 0), 0);
-    return Math.round((sum / results.length) * 10) / 10;
-  }, [results]);
-
-  const refresh = async () => {
-    if (!studentId) return;
-    loadResults(studentId);
   };
 
   const logout = async () => {
@@ -105,7 +109,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-yellow-300 text-black">
       <header className="border-b border-black bg-yellow-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="w-full px-4 py-4 flex items-center justify-between md:max-w-6xl md:mx-auto">
           <h1 className="text-xl font-bold">Language Learning</h1>
 
           <nav className="flex gap-3 items-center">
@@ -124,12 +128,12 @@ export default function DashboardPage() {
             <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/leaderboard">
               Leaderboard
             </Link>
-            <Link
-              href="/change-password"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-            >
-              Change Password
-            </Link>
+                      <Link
+                          href="/change-password"
+                          className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                      >
+                          Change Password
+                      </Link>
 
             <button
               onClick={logout}
@@ -142,7 +146,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-10">
-        <h2 className="text-2xl font-bold mb-2">Welcome back, {studentName}!</h2>
+        <h2 className="text-2xl font-bold mb-2">Welcome back, {studentId}!</h2>
         <p className="mb-6">Track your progress and continue learning.</p>
 
         {error ? (
@@ -167,7 +171,7 @@ export default function DashboardPage() {
 
           <div className="bg-yellow-100 border border-black rounded-xl p-6">
             <h3 className="font-semibold mb-2">Current Level</h3>
-            <p className="text-3xl font-bold">{loading ? '...' : profileLevel}</p>
+            <p className="text-3xl font-bold">{loading ? '...' : level}</p>
             <p className="text-sm">Language proficiency</p>
           </div>
         </div>
@@ -204,14 +208,14 @@ export default function DashboardPage() {
               <div className="border border-dashed border-black rounded-lg p-6 text-center">
                 <p>Loading...</p>
               </div>
-            ) : results.length === 0 ? (
+            ) : safeResults.length === 0 ? (
               <div className="border border-dashed border-black rounded-lg p-6 text-center">
                 <p>No tests completed yet</p>
                 <p className="text-sm mt-1">Take your first test to get started!</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {results.slice(0, 5).map((r) => (
+                {safeResults.slice(0, 5).map((r) => (
                   <div
                     key={r.id}
                     className="border border-black rounded-lg bg-yellow-50 p-3 flex items-center justify-between"
@@ -222,7 +226,7 @@ export default function DashboardPage() {
                     </div>
 
                     <span className="text-xs px-2 py-1 rounded-md border border-black bg-yellow-200">
-                      Quiz #{r.quiz_id ?? '-'}
+                      #{r.id}
                     </span>
                   </div>
                 ))}
