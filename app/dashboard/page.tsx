@@ -6,11 +6,10 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
 
 type ResultRow = {
-  id: number;
   student_id: string;
+  quiz_id: number;
   score: number;
-  created_at: string;
-  quiz_id?: number | null;
+  created_at?: string | null;
 };
 
 export default function DashboardPage() {
@@ -77,10 +76,9 @@ export default function DashboardPage() {
       setError('');
 
       const { data, error } = await supabase
-        .from('results')
-        .select('id, student_id, score, created_at, quiz_id')
+        .from('leaderboard')
+        .select('student_id, quiz_id, score, created_at')
         .eq('student_id', userId)
-        .order('created_at', { ascending: false })
         .limit(10);
 
       if (cancelled) return;
@@ -120,10 +118,9 @@ export default function DashboardPage() {
     setError('');
 
     const { data, error } = await supabase
-      .from('results')
-      .select('id, student_id, score, created_at, quiz_id')
+      .from('leaderboard')
+      .select('student_id, quiz_id, score, created_at')
       .eq('student_id', userId)
-      .order('created_at', { ascending: false })
       .limit(10);
 
     if (error) {
@@ -162,25 +159,52 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold">Language Learning</h1>
 
             <nav className="flex flex-wrap gap-2">
-              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold" href="/dashboard">
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold"
+                href="/dashboard"
+              >
                 Dashboard
               </Link>
-              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/take-test">
+
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/take-test"
+              >
                 Take Test
               </Link>
-              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/history">
+
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/history"
+              >
                 History
               </Link>
-              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/progress">
+
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/progress"
+              >
                 Progress
               </Link>
-              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/leaderboard">
+
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/leaderboard"
+              >
                 Leaderboard
               </Link>
-              <Link href="/change-password" className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition">
+
+              <Link
+                href="/change-password"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
                 Change Password
               </Link>
-              <button onClick={logout} className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition">
+
+              <button
+                onClick={logout}
+                className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition"
+              >
                 Logout
               </button>
             </nav>
@@ -262,16 +286,18 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {safeResults.slice(0, 5).map((r) => (
                   <div
-                    key={r.id}
+                    key={`${r.student_id}-${r.quiz_id}`}
                     className="border border-black rounded-lg bg-yellow-50 p-3 flex items-center justify-between gap-3"
                   >
                     <div className="min-w-0">
                       <p className="font-semibold">Score: {r.score}%</p>
-                      <p className="text-xs break-words">{new Date(r.created_at).toLocaleString()}</p>
+                      <p className="text-xs break-words">
+                        {r.created_at ? new Date(r.created_at).toLocaleString() : 'No date'}
+                      </p>
                     </div>
 
                     <span className="text-xs px-2 py-1 rounded-md border border-black bg-yellow-200 shrink-0">
-                      #{r.id}
+                      Quiz #{r.quiz_id}
                     </span>
                   </div>
                 ))}

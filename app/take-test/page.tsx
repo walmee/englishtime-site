@@ -181,7 +181,7 @@ useEffect(() => {
         return;
       }
 
-      setMsg("Score leaderboard'a kaydedildi.");
+      setMsg(json?.message || "İşlem tamamlandı.");
     } catch (e: any) {
       setMsg(e?.message || "Unexpected error");
     } finally {
