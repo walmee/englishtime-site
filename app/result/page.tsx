@@ -1,9 +1,10 @@
 ﻿'use client';
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function ResultPage() {
+function ResultContent() {
   const sp = useSearchParams();
 
   const score = sp.get('score') ?? '0';
@@ -39,7 +40,9 @@ export default function ResultPage() {
 
       <main className="max-w-3xl mx-auto px-6 py-10">
         <h2 className="text-2xl font-bold mb-2">Result</h2>
-        <p className="mb-8">Quiz ID: <b>{quiz}</b></p>
+        <p className="mb-8">
+          Quiz ID: <b>{quiz}</b>
+        </p>
 
         <div className="bg-yellow-100 border border-black rounded-xl p-6">
           <p className="text-xl font-bold mb-3">Your Score</p>
@@ -83,5 +86,13 @@ export default function ResultPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ResultPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-yellow-300 text-black p-6">Loading result...</div>}>
+      <ResultContent />
+    </Suspense>
   );
 }
