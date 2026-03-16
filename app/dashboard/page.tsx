@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [studentId, setStudentId] = useState('');
+  const [userId, setUserId] = useState('');
   const [profileName, setProfileName] = useState('');
   const [profileLevel, setProfileLevel] = useState('');
   const [results, setResults] = useState<ResultRow[] | undefined>([]);
@@ -55,7 +55,7 @@ export default function DashboardPage() {
 
       const username = profile.username || user.email || 'Student';
 
-      setStudentId(username);
+      setUserId(user.id);
       setProfileName(username);
       setProfileLevel(profile.level || 'A1');
     };
@@ -68,7 +68,7 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!studentId) return;
+    if (!userId) return;
 
     let cancelled = false;
 
@@ -79,7 +79,7 @@ export default function DashboardPage() {
       const { data, error } = await supabase
         .from('results')
         .select('id, student_id, score, created_at, quiz_id')
-        .eq('student_id', studentId)
+        .eq('student_id', userId)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -103,7 +103,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [studentId]);
+  }, [userId]);
 
   const testsCompleted = safeResults.length;
 
@@ -114,7 +114,7 @@ export default function DashboardPage() {
   }, [safeResults]);
 
   const refresh = async () => {
-    if (!studentId) return;
+    if (!userId) return;
 
     setLoading(true);
     setError('');
@@ -122,7 +122,7 @@ export default function DashboardPage() {
     const { data, error } = await supabase
       .from('results')
       .select('id, student_id, score, created_at, quiz_id')
-      .eq('student_id', studentId)
+      .eq('student_id', userId)
       .order('created_at', { ascending: false })
       .limit(10);
 
@@ -162,52 +162,25 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold">Language Learning</h1>
 
             <nav className="flex flex-wrap gap-2">
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold"
-                href="/dashboard"
-              >
+              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold" href="/dashboard">
                 Dashboard
               </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/take-test"
-              >
+              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/take-test">
                 Take Test
               </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/history"
-              >
+              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/history">
                 History
               </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/progress"
-              >
+              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/progress">
                 Progress
               </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/leaderboard"
-              >
+              <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/leaderboard">
                 Leaderboard
               </Link>
-
-              <Link
-                href="/change-password"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
+              <Link href="/change-password" className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition">
                 Change Password
               </Link>
-
-              <button
-                onClick={logout}
-                className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition"
-              >
+              <button onClick={logout} className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition">
                 Logout
               </button>
             </nav>
@@ -217,7 +190,7 @@ export default function DashboardPage() {
 
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden">
         <h2 className="text-2xl font-bold mb-2 break-words">
-          Welcome back, {profileName || studentId}!
+          Welcome back, {profileName}!
         </h2>
         <p className="mb-6">Track your progress and continue learning.</p>
 
