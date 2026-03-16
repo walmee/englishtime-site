@@ -18,18 +18,53 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [studentId, setStudentId] = useState('');
+  const [profileName, setProfileName] = useState('');
+  const [profileLevel, setProfileLevel] = useState('');
   const [results, setResults] = useState<ResultRow[] | undefined>([]);
   const [error, setError] = useState('');
 
   const safeResults: ResultRow[] = Array.isArray(results) ? results : [];
 
   useEffect(() => {
-    const sid = (localStorage.getItem('student_id') || '').trim();
-    if (!sid) {
-      router.push('/login');
-      return;
-    }
-    setStudentId(sid);
+    let mounted = true;
+
+    const loadUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const user = session?.user;
+
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('username, level')
+        .eq('id', user.id)
+        .single();
+
+      if (!mounted) return;
+
+      if (error || !profile) {
+        router.push('/login');
+        return;
+      }
+
+      const username = profile.username || user.email || 'Student';
+
+      setStudentId(username);
+      setProfileName(username);
+      setProfileLevel(profile.level || 'A1');
+    };
+
+    loadUser();
+
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
   useEffect(() => {
@@ -78,12 +113,6 @@ export default function DashboardPage() {
     return Math.round((sum / safeResults.length) * 10) / 10;
   }, [safeResults]);
 
-  const level = useMemo(() => {
-    if (avgScore >= 85) return 'B1';
-    if (avgScore >= 65) return 'A2';
-    return 'A1';
-  }, [avgScore]);
-
   const refresh = async () => {
     if (!studentId) return;
 
@@ -111,9 +140,18 @@ export default function DashboardPage() {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error(e);
+    }
+
     localStorage.removeItem('student_id');
-    router.push('/login');
+    localStorage.removeItem('is_admin');
+    localStorage.removeItem('admin_email');
+
+    router.replace('/login');
+    window.location.href = '/login';
   };
 
   return (
@@ -178,7 +216,9 @@ export default function DashboardPage() {
       </header>
 
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden">
-        <h2 className="text-2xl font-bold mb-2 break-words">Welcome back, {studentId}!</h2>
+        <h2 className="text-2xl font-bold mb-2 break-words">
+          Welcome back, {profileName || studentId}!
+        </h2>
         <p className="mb-6">Track your progress and continue learning.</p>
 
         {error ? (
@@ -203,7 +243,7 @@ export default function DashboardPage() {
 
           <div className="bg-yellow-100 border border-black rounded-xl p-6">
             <h3 className="font-semibold mb-2">Current Level</h3>
-            <p className="text-3xl font-bold">{loading ? '...' : level}</p>
+            <p className="text-3xl font-bold">{loading ? '...' : profileLevel}</p>
             <p className="text-sm">Language proficiency</p>
           </div>
         </div>
