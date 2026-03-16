@@ -23,7 +23,6 @@ export default function DashboardPage() {
 
   const safeResults: ResultRow[] = Array.isArray(results) ? results : [];
 
-  // ✅ LOGIN GUARD
   useEffect(() => {
     const sid = (localStorage.getItem('student_id') || '').trim();
     if (!sid) {
@@ -33,9 +32,10 @@ export default function DashboardPage() {
     setStudentId(sid);
   }, [router]);
 
-  // ✅ LOAD MY RECENT RESULTS
   useEffect(() => {
     if (!studentId) return;
+
+    let cancelled = false;
 
     const load = async () => {
       setLoading(true);
@@ -48,8 +48,12 @@ export default function DashboardPage() {
         .order('created_at', { ascending: false })
         .limit(10);
 
+      if (cancelled) return;
+
       if (error) {
-        setError(error.message);
+        if (!error.message.toLowerCase().includes('abort')) {
+          setError(error.message);
+        }
         setResults([]);
         setLoading(false);
         return;
@@ -60,6 +64,10 @@ export default function DashboardPage() {
     };
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [studentId]);
 
   const testsCompleted = safeResults.length;
@@ -90,7 +98,9 @@ export default function DashboardPage() {
       .limit(10);
 
     if (error) {
-      setError(error.message);
+      if (!error.message.toLowerCase().includes('abort')) {
+        setError(error.message);
+      }
       setResults([]);
       setLoading(false);
       return;
@@ -107,52 +117,74 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-yellow-300 text-black">
-      <header className="border-b border-black bg-yellow-200">
-        <div className="w-full px-4 py-4 flex items-center justify-between md:max-w-6xl md:mx-auto">
-          <h1 className="text-xl font-bold">Language Learning</h1>
+    <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
+      <header className="border-b border-black bg-yellow-200 w-full overflow-x-hidden">
+        <div className="w-full px-3 py-4 md:max-w-6xl md:mx-auto">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <h1 className="text-xl font-bold">Language Learning</h1>
 
-          <nav className="flex gap-3 items-center">
-            <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold" href="/dashboard">
-              Dashboard
-            </Link>
-            <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/take-test">
-              Take Test
-            </Link>
-            <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/history">
-              History
-            </Link>
-            <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/progress">
-              Progress
-            </Link>
-            <Link className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition" href="/leaderboard">
-              Leaderboard
-            </Link>
-                      <Link
-                          href="/change-password"
-                          className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                      >
-                          Change Password
-                      </Link>
+            <nav className="flex flex-wrap gap-2">
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold"
+                href="/dashboard"
+              >
+                Dashboard
+              </Link>
 
-            <button
-              onClick={logout}
-              className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition"
-            >
-              Logout
-            </button>
-          </nav>
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/take-test"
+              >
+                Take Test
+              </Link>
+
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/history"
+              >
+                History
+              </Link>
+
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/progress"
+              >
+                Progress
+              </Link>
+
+              <Link
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+                href="/leaderboard"
+              >
+                Leaderboard
+              </Link>
+
+              <Link
+                href="/change-password"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
+                Change Password
+              </Link>
+
+              <button
+                onClick={logout}
+                className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition"
+              >
+                Logout
+              </button>
+            </nav>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <h2 className="text-2xl font-bold mb-2">Welcome back, {studentId}!</h2>
+      <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden">
+        <h2 className="text-2xl font-bold mb-2 break-words">Welcome back, {studentId}!</h2>
         <p className="mb-6">Track your progress and continue learning.</p>
 
         {error ? (
           <div className="mb-6 bg-red-100 border border-black rounded-xl p-4">
             <p className="font-bold">Error</p>
-            <p className="text-sm">{error}</p>
+            <p className="text-sm break-words">{error}</p>
           </div>
         ) : null}
 
@@ -181,7 +213,7 @@ export default function DashboardPage() {
             <h3 className="font-semibold mb-4">Quick Start</h3>
             <Link
               href="/take-test"
-              className="block text-center bg-black text-yellow-300 font-bold py-3 rounded-lg hover:bg-gray-800 transition"
+              className="block w-full text-center bg-black text-yellow-300 font-bold py-3 rounded-lg hover:bg-gray-800 transition"
             >
               Start New Test →
             </Link>
@@ -194,11 +226,11 @@ export default function DashboardPage() {
           </div>
 
           <div className="bg-yellow-100 border border-black rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold mb-4">Recent Tests</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-semibold">Recent Tests</h3>
               <button
                 onClick={refresh}
-                className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition text-sm"
+                className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition text-sm shrink-0"
               >
                 Refresh
               </button>
@@ -218,14 +250,14 @@ export default function DashboardPage() {
                 {safeResults.slice(0, 5).map((r) => (
                   <div
                     key={r.id}
-                    className="border border-black rounded-lg bg-yellow-50 p-3 flex items-center justify-between"
+                    className="border border-black rounded-lg bg-yellow-50 p-3 flex items-center justify-between gap-3"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold">Score: {r.score}%</p>
-                      <p className="text-xs">{new Date(r.created_at).toLocaleString()}</p>
+                      <p className="text-xs break-words">{new Date(r.created_at).toLocaleString()}</p>
                     </div>
 
-                    <span className="text-xs px-2 py-1 rounded-md border border-black bg-yellow-200">
+                    <span className="text-xs px-2 py-1 rounded-md border border-black bg-yellow-200 shrink-0">
                       #{r.id}
                     </span>
                   </div>
