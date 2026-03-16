@@ -1,0 +1,282 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type TopStudentRow = {
+  student_id: string;
+  username: string;
+  level: string;
+  total_score: number;
+  quizzes_count: number;
+};
+
+type LevelStatRow = {
+  level: string;
+  students: number;
+  total_score: number;
+};
+
+type ClassStatRow = {
+  class_name: string;
+  students: number;
+  total_score: number;
+};
+
+type OverviewResponse = {
+  stats: {
+    totalTests: number;
+    totalStudents: number;
+    averageScore: number;
+  };
+  topStudents: TopStudentRow[];
+  levelStats: LevelStatRow[];
+  classStats: ClassStatRow[];
+};
+
+export default function AdminLeaderboardPage() {
+  const [data, setData] = useState<OverviewResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const loadOverview = async () => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const res = await fetch("/api/admin/leaderboard/overview");
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+
+      if (!res.ok) {
+        setMessage(json?.error || "Leaderboard verileri yüklenemedi.");
+        setData(null);
+      } else {
+        setData(json);
+      }
+    } catch (error: any) {
+      setMessage(error?.message || "Beklenmeyen bir hata oluştu.");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetLeaderboard = async () => {
+    const ok = window.confirm(
+      "Leaderboard tamamen sıfırlansın mı? Bu işlem geri alınamaz."
+    );
+
+    if (!ok) return;
+
+    setResetting(true);
+    setMessage("");
+
+    try {
+      const res = await fetch("/api/admin/leaderboard/reset", {
+        method: "POST",
+      });
+
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+
+      if (!res.ok) {
+        setMessage(json?.error || "Leaderboard sıfırlanamadı.");
+      } else {
+        setMessage(json?.message || "Leaderboard başarıyla sıfırlandı.");
+        await loadOverview();
+      }
+    } catch (error: any) {
+      setMessage(error?.message || "Beklenmeyen bir hata oluştu.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOverview();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-yellow-300 text-black">
+      <main className="max-w-6xl mx-auto px-6 py-10">
+        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Leaderboard Analytics</h1>
+              <p className="text-sm mt-1">
+                Tüm kurs için sıralama ve analiz ekranı.
+              </p>
+            </div>
+
+            <button
+              onClick={resetLeaderboard}
+              disabled={resetting}
+              className="px-4 py-3 rounded-lg border border-black bg-red-500 text-white font-bold hover:bg-red-600 transition disabled:opacity-60"
+            >
+              {resetting ? "Sıfırlanıyor..." : "Leaderboard Sıfırla"}
+            </button>
+          </div>
+
+          {message ? (
+            <div className="mb-6 bg-yellow-50 border border-black rounded-xl p-4">
+              {message}
+            </div>
+          ) : null}
+
+          {loading ? (
+            <div className="border border-dashed border-black rounded-lg p-8 text-center">
+              Loading analytics...
+            </div>
+          ) : !data ? (
+            <div className="border border-dashed border-black rounded-lg p-8 text-center">
+              Veri bulunamadı.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-yellow-50 border border-black rounded-xl p-5">
+                  <div className="text-xs opacity-70">Toplam Test Kaydı</div>
+                  <div className="text-3xl font-extrabold mt-1">
+                    {data.stats.totalTests}
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-black rounded-xl p-5">
+                  <div className="text-xs opacity-70">Skor Alan Öğrenci</div>
+                  <div className="text-3xl font-extrabold mt-1">
+                    {data.stats.totalStudents}
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-black rounded-xl p-5">
+                  <div className="text-xs opacity-70">Ortalama Test Skoru</div>
+                  <div className="text-3xl font-extrabold mt-1">
+                    {data.stats.averageScore}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-black rounded-xl p-5">
+                <h2 className="text-2xl font-bold mb-4">Top Students</h2>
+
+                {data.topStudents.length === 0 ? (
+                  <div className="border border-dashed border-black rounded-lg p-6 text-center">
+                    Henüz skor kaydı yok.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-yellow-200">
+                          <th className="border border-black p-3 text-left">#</th>
+                          <th className="border border-black p-3 text-left">Öğrenci</th>
+                          <th className="border border-black p-3 text-left">Level</th>
+                          <th className="border border-black p-3 text-left">Quiz Sayısı</th>
+                          <th className="border border-black p-3 text-left">Toplam Puan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.topStudents.map((student, index) => (
+                          <tr key={student.student_id} className="bg-white">
+                            <td className="border border-black p-3">{index + 1}</td>
+                            <td className="border border-black p-3 font-bold">
+                              {student.username}
+                            </td>
+                            <td className="border border-black p-3">{student.level}</td>
+                            <td className="border border-black p-3">
+                              {student.quizzes_count}
+                            </td>
+                            <td className="border border-black p-3 font-bold">
+                              {student.total_score}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-yellow-50 border border-black rounded-xl p-5">
+                  <h2 className="text-2xl font-bold mb-4">By Level</h2>
+
+                  {data.levelStats.length === 0 ? (
+                    <div className="border border-dashed border-black rounded-lg p-6 text-center">
+                      Veri yok.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-yellow-200">
+                            <th className="border border-black p-3 text-left">Level</th>
+                            <th className="border border-black p-3 text-left">Öğrenci</th>
+                            <th className="border border-black p-3 text-left">Toplam Puan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.levelStats.map((level) => (
+                            <tr key={level.level} className="bg-white">
+                              <td className="border border-black p-3 font-bold">
+                                {level.level}
+                              </td>
+                              <td className="border border-black p-3">
+                                {level.students}
+                              </td>
+                              <td className="border border-black p-3">
+                                {level.total_score}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-yellow-50 border border-black rounded-xl p-5">
+                  <h2 className="text-2xl font-bold mb-4">By Class</h2>
+
+                  {data.classStats.length === 0 ? (
+                    <div className="border border-dashed border-black rounded-lg p-6 text-center">
+                      Veri yok.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-yellow-200">
+                            <th className="border border-black p-3 text-left">Sınıf</th>
+                            <th className="border border-black p-3 text-left">Öğrenci</th>
+                            <th className="border border-black p-3 text-left">Toplam Puan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.classStats.map((cls) => (
+                            <tr key={cls.class_name} className="bg-white">
+                              <td className="border border-black p-3 font-bold">
+                                {cls.class_name}
+                              </td>
+                              <td className="border border-black p-3">
+                                {cls.students}
+                              </td>
+                              <td className="border border-black p-3">
+                                {cls.total_score}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
