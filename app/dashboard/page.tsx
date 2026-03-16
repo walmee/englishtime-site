@@ -107,8 +107,8 @@ export default function DashboardPage() {
 
   const avgScore = useMemo(() => {
     if (!safeResults.length) return 0;
-    const sum = safeResults.reduce((acc, r) => acc + (Number(r.score) || 0), 0);
-    return Math.round((sum / safeResults.length) * 10) / 10;
+    const total = safeResults.reduce((acc, r) => acc + (Number(r.score) || 0), 0);
+    return Math.round(total / safeResults.length);
   }, [safeResults]);
 
   const refresh = async () => {
@@ -156,7 +156,7 @@ export default function DashboardPage() {
       <header className="border-b border-black bg-yellow-200 w-full overflow-x-hidden">
         <div className="w-full px-3 py-4 md:max-w-6xl md:mx-auto">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h1 className="text-xl font-bold">Language Learning</h1>
+            <h1 className="text-xl font-bold">English Time</h1>
 
             <nav className="flex flex-wrap gap-2">
               <Link
@@ -192,6 +192,13 @@ export default function DashboardPage() {
                 href="/leaderboard"
               >
                 Leaderboard
+              </Link>
+
+              <Link
+                href="/worksheets"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
+                Worksheets
               </Link>
 
               <Link

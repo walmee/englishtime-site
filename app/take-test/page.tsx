@@ -38,21 +38,21 @@ export default function TakeTestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [finished, setFinished] = useState(false);
 
-const [studentId, setStudentId] = useState("");
+  const [studentId, setStudentId] = useState("");
 
-useEffect(() => {
-  const loadUser = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  useEffect(() => {
+    const loadUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (user?.id) {
-      setStudentId(user.id);
-    }
-  };
+      if (user?.id) {
+        setStudentId(user.id);
+      }
+    };
 
-  loadUser();
-}, []);
+    loadUser();
+  }, []);
 
   const totalPoints = useMemo(() => {
     return questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
@@ -196,47 +196,55 @@ useEffect(() => {
   };
 
   return (
-    <div className="min-h-screen bg-yellow-300 text-black">
-      <header className="border-b border-black bg-yellow-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Language Learning</h1>
+    <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
+      <header className="border-b border-black bg-yellow-200 w-full overflow-x-hidden">
+        <div className="w-full px-3 py-4 md:max-w-6xl md:mx-auto">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <h1 className="text-xl font-bold">English Time</h1>
 
-          <nav className="flex gap-3">
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/take-test"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold"
-            >
-              Take Test
-            </Link>
-            <Link
-              href="/history"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-            >
-              History
-            </Link>
-            <Link
-              href="/progress"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-            >
-              Progress
-            </Link>
-            <Link
-              href="/leaderboard"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-            >
-              Leaderboard
-            </Link>
-          </nav>
+            <nav className="flex flex-wrap gap-2">
+              <Link
+                href="/dashboard"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/take-test"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold"
+              >
+                Take Test
+              </Link>
+              <Link
+                href="/history"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
+                History
+              </Link>
+              <Link
+                href="/progress"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
+                Progress
+              </Link>
+              <Link
+                href="/leaderboard"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
+                Leaderboard
+              </Link>
+              <Link
+                href="/worksheets"
+                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
+              >
+                Worksheets
+              </Link>
+            </nav>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+      <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
         <div className="bg-yellow-100 border border-black rounded-2xl p-6">
           <h2 className="text-2xl font-bold mb-2">Take a Test</h2>
           <p className="text-sm opacity-90">
@@ -246,7 +254,7 @@ useEffect(() => {
           {msg ? (
             <div className="mt-4 bg-red-100 border border-black rounded-xl p-4">
               <p className="font-bold">Notice</p>
-              <p className="text-sm">{msg}</p>
+              <p className="text-sm break-words">{msg}</p>
             </div>
           ) : null}
 
@@ -276,18 +284,16 @@ useEffect(() => {
               <div className="font-bold">
                 {answeredCount}/{questions.length} answered
               </div>
-              <div className="text-xs opacity-80 mt-1">
-                Total points: {totalPoints}
-              </div>
+              <div className="text-xs opacity-80 mt-1">Total points: {totalPoints}</div>
             </div>
           </div>
         </div>
 
         <div className="bg-yellow-100 border border-black rounded-2xl p-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xl font-bold">Questions</h3>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {!finished ? (
                 <button
                   onClick={submitTest}
@@ -301,7 +307,7 @@ useEffect(() => {
                   onClick={resetForRetry}
                   className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
                 >
-                  Try Again (won’t change leaderboard)
+                  Try Again
                 </button>
               )}
             </div>
@@ -326,7 +332,7 @@ useEffect(() => {
                     <div className="font-bold">
                       Q{idx + 1}. ({q.points} pts)
                     </div>
-                    <div className="mt-1">{q.question_text}</div>
+                    <div className="mt-1 break-words">{q.question_text}</div>
 
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                       {(
@@ -345,7 +351,7 @@ useEffect(() => {
                             onClick={() => pick(q.id, opt)}
                             disabled={finished}
                             className={[
-                              "text-left px-3 py-3 rounded-lg border border-black transition",
+                              "text-left px-3 py-3 rounded-lg border border-black transition break-words",
                               selected ? "bg-yellow-300" : "bg-yellow-100 hover:bg-yellow-200",
                               finished ? "opacity-80 cursor-default" : "",
                             ].join(" ")}
@@ -357,7 +363,7 @@ useEffect(() => {
                     </div>
 
                     {finished ? (
-                      <div className="mt-3 text-sm font-bold">
+                      <div className="mt-3 text-sm font-bold break-words">
                         Your answer: {picked ?? "-"} • Correct: {q.correct_option} •{" "}
                         {picked ? (isCorrect ? "✅ Correct" : "❌ Wrong") : "❌ Not answered"}
                       </div>
@@ -393,7 +399,7 @@ useEffect(() => {
               </div>
             </div>
 
-            <div className="mt-4 flex gap-3 flex-wrap">
+            <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 href="/leaderboard"
                 className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
