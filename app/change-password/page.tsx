@@ -98,26 +98,7 @@ export default function ChangePasswordPage() {
   return (
     <div className="min-h-screen bg-yellow-300 text-black">
       {/* TOP NAVBAR */}
-      <header className="border-b border-black bg-yellow-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Language Learning</h1>
-
-          <nav className="flex gap-3 items-center">
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/leaderboard"
-              className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-            >
-              Leaderboard
-            </Link>
-          </nav>
-        </div>
-      </header>
+     
 
       <main className="max-w-md mx-auto px-6 py-10">
         <div className="bg-yellow-100 border border-black rounded-2xl p-6">
