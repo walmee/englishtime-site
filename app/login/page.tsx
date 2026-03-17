@@ -37,7 +37,7 @@ export default function LoginPage() {
                 return;
             }
 
-            // ✅ student_id: e-mail prefix (melike / lutfiye vs)
+            // ✅ student_id: e-mail prefix 
             const prefix = email.split("@")[0].toLowerCase().trim();
             localStorage.setItem("student_id", prefix);
 
@@ -73,7 +73,7 @@ export default function LoginPage() {
             <div className="w-full max-w-md bg-yellow-100 border border-black rounded-2xl p-6">
                 <h1 className="text-3xl font-extrabold mb-2">Login</h1>
                 <p className="text-sm mb-6">
-                    Sign in with your class account (example: <b>lutfiye@english.time</b>)
+                    Sign in with your class account (example: <b>name@english.time</b>)
                 </p>
 
                 <label className="block text-sm font-semibold mb-1">Email</label>
@@ -81,7 +81,7 @@ export default function LoginPage() {
                     className="w-full p-3 rounded-lg border border-black bg-yellow-50 mb-4"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. melike@english.time"
+                    placeholder="e.g. name@english.time"
                     autoComplete="username"
                 />
 

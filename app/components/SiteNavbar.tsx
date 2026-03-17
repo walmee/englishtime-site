@@ -154,7 +154,7 @@ export default function SiteNavbar() {
         <div className="flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-4 shrink-0">
             <Image
-              src="/logo.svg"
+              src="/logo.png"
               alt="English Time"
               width={170}
               height={56}
