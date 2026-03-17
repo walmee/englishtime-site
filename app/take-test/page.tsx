@@ -226,9 +226,15 @@ export default function TakeTestPage() {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
+    <div
+      className="min-h-screen w-full overflow-x-hidden text-black"
+      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+    >
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+        <div
+          className="border border-black rounded-2xl p-6"
+          style={{ backgroundColor: "var(--bg-card)" }}
+        >
           <h2 className="text-2xl font-bold mb-2">Take a Test</h2>
           <p className="text-sm opacity-90">
             Choose a quiz, answer the questions, then submit to see your result.
@@ -248,7 +254,8 @@ export default function TakeTestPage() {
                 value={quizId ?? ""}
                 onChange={(e) => setQuizId(Number(e.target.value))}
                 disabled={loadingQuizzes || submitting || quizzes.length === 0}
-                className="w-full p-3 rounded-lg border border-black bg-yellow-50"
+                className="w-full p-3 rounded-lg border border-black"
+                style={{ backgroundColor: "var(--bg-soft)", color: "var(--text-main)" }}
               >
                 {loadingQuizzes ? (
                   <option>Loading quizzes...</option>
@@ -264,7 +271,10 @@ export default function TakeTestPage() {
               </select>
             </div>
 
-            <div className="bg-yellow-50 border border-black rounded-xl p-4">
+            <div
+              className="border border-black rounded-xl p-4"
+              style={{ backgroundColor: "var(--bg-soft)" }}
+            >
               <div className="text-xs opacity-80">Progress</div>
               <div className="font-bold">
                 {answeredCount}/{questions.length} answered
@@ -274,7 +284,10 @@ export default function TakeTestPage() {
           </div>
         </div>
 
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+        <div
+          className="border border-black rounded-2xl p-6"
+          style={{ backgroundColor: "var(--bg-card)" }}
+        >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-xl font-bold">Questions</h3>
 
@@ -283,14 +296,16 @@ export default function TakeTestPage() {
                 <button
                   onClick={submitTest}
                   disabled={submitting || loadingQuestions || questions.length === 0}
-                  className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 disabled:opacity-60"
+                  className="px-4 py-2 rounded-lg border border-black font-bold transition disabled:opacity-60"
+                  style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
                 >
                   {submitting ? "Submitting..." : "Submit Test"}
                 </button>
               ) : (
                 <button
                   onClick={resetForRetry}
-                  className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
+                  className="px-4 py-2 rounded-lg border border-black transition font-bold"
+                  style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
                 >
                   Try Again
                 </button>
@@ -313,7 +328,11 @@ export default function TakeTestPage() {
                 const isCorrect = picked && picked === q.correct_option;
 
                 return (
-                  <div key={q.id} className="bg-yellow-50 border border-black rounded-xl p-4">
+                  <div
+                    key={q.id}
+                    className="border border-black rounded-xl p-4"
+                    style={{ backgroundColor: "var(--bg-soft)" }}
+                  >
                     <div className="font-bold">
                       Q{idx + 1}. ({q.points} pts)
                     </div>
@@ -337,9 +356,12 @@ export default function TakeTestPage() {
                             disabled={finished}
                             className={[
                               "text-left px-3 py-3 rounded-lg border border-black transition break-words",
-                              selected ? "bg-yellow-300" : "bg-yellow-100 hover:bg-yellow-200",
                               finished ? "opacity-80 cursor-default" : "",
                             ].join(" ")}
+                            style={{
+                              backgroundColor: selected ? "var(--bg-button)" : "var(--bg-card)",
+                              color: "var(--text-main)",
+                            }}
                           >
                             <b>{opt})</b> {text}
                           </button>
@@ -361,22 +383,34 @@ export default function TakeTestPage() {
         </div>
 
         {finished ? (
-          <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+          <div
+            className="border border-black rounded-2xl p-6"
+            style={{ backgroundColor: "var(--bg-card)" }}
+          >
             <h3 className="text-xl font-bold mb-2">Result</h3>
             <p className="text-sm mb-4">
               Score is saved to leaderboard after you submit this quiz.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-yellow-50 border border-black rounded-xl p-4">
+              <div
+                className="border border-black rounded-xl p-4"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
                 <div className="text-xs opacity-80">Points</div>
                 <div className="text-2xl font-extrabold">{chosenPoints}</div>
               </div>
-              <div className="bg-yellow-50 border border-black rounded-xl p-4">
+              <div
+                className="border border-black rounded-xl p-4"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
                 <div className="text-xs opacity-80">Total</div>
                 <div className="text-2xl font-extrabold">{totalPoints}</div>
               </div>
-              <div className="bg-yellow-50 border border-black rounded-xl p-4">
+              <div
+                className="border border-black rounded-xl p-4"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
                 <div className="text-xs opacity-80">Answered</div>
                 <div className="text-2xl font-extrabold">
                   {answeredCount}/{questions.length}
@@ -387,13 +421,15 @@ export default function TakeTestPage() {
             <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 href="/leaderboard"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
+                className="px-4 py-2 rounded-lg border border-black transition font-bold"
+                style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
               >
                 View Leaderboard →
               </Link>
               <Link
                 href="/dashboard"
-                className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 transition"
+                className="px-4 py-2 rounded-lg border border-black transition font-bold"
+                style={{ backgroundColor: "var(--bg-soft)", color: "var(--text-main)" }}
               >
                 Back to Dashboard
               </Link>

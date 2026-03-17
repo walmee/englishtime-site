@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f6d93b;
   --foreground: #171717;
+
+  --bg-main: #f6d93b;
+  --bg-card: #fef3a6;
+  --bg-soft: #fff7cf;
+  --bg-button: #e0b33a;
+  --text-main: #171717;
+  --text-soft: #6b6248;
+  --border-main: #d7cfbe;
 }
 
 @theme inline {
@@ -12,11 +20,32 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Pink theme for Sıla */
+body[data-theme="pink"] {
+  --background: #fbcfe8;
+  --foreground: #171717;
+
+  --bg-main: #fbcfe8;
+  --bg-card: #fdf2f8;
+  --bg-soft: #fff7fb;
+  --bg-button: #f472b6;
+  --text-main: #171717;
+  --text-soft: #7a4b67;
+  --border-main: #e9bfd1;
+}
+
+/* Optional blue theme for later */
+body[data-theme="blue"] {
+  --background: #bfdbfe;
+  --foreground: #171717;
+
+  --bg-main: #bfdbfe;
+  --bg-card: #eff6ff;
+  --bg-soft: #f7fbff;
+  --bg-button: #60a5fa;
+  --text-main: #171717;
+  --text-soft: #4b6480;
+  --border-main: #bfd3ea;
 }
 
 body {

@@ -152,9 +152,10 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
-     
-
+    <div
+      className="min-h-screen w-full overflow-x-hidden text-black"
+      style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}
+    >
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden">
         <h2 className="text-2xl font-bold mb-2 break-words">
           Welcome back, {profileName}!
@@ -169,19 +170,28 @@ export default function DashboardPage() {
         ) : null}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-yellow-100 border border-black rounded-xl p-6">
+          <div
+            className="border border-black rounded-xl p-6"
+            style={{ backgroundColor: 'var(--bg-card)' }}
+          >
             <h3 className="font-semibold mb-2">Average Score</h3>
             <p className="text-3xl font-bold">{loading ? '...' : `${avgScore}%`}</p>
             <p className="text-sm">Across all tests</p>
           </div>
 
-          <div className="bg-yellow-100 border border-black rounded-xl p-6">
+          <div
+            className="border border-black rounded-xl p-6"
+            style={{ backgroundColor: 'var(--bg-card)' }}
+          >
             <h3 className="font-semibold mb-2">Tests Completed</h3>
             <p className="text-3xl font-bold">{loading ? '...' : testsCompleted}</p>
             <p className="text-sm">Total assessments</p>
           </div>
 
-          <div className="bg-yellow-100 border border-black rounded-xl p-6">
+          <div
+            className="border border-black rounded-xl p-6"
+            style={{ backgroundColor: 'var(--bg-card)' }}
+          >
             <h3 className="font-semibold mb-2">Current Level</h3>
             <p className="text-3xl font-bold">{loading ? '...' : profileLevel}</p>
             <p className="text-sm">Language proficiency</p>
@@ -189,11 +199,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-yellow-100 border border-black rounded-xl p-6">
+          <div
+            className="border border-black rounded-xl p-6"
+            style={{ backgroundColor: 'var(--bg-card)' }}
+          >
             <h3 className="font-semibold mb-4">Quick Start</h3>
             <Link
               href="/take-test"
-              className="block w-full text-center bg-black text-yellow-300 font-bold py-3 rounded-lg hover:bg-gray-800 transition"
+              className="block w-full text-center font-bold py-3 rounded-lg transition border border-black"
+              style={{ backgroundColor: 'var(--bg-button)', color: 'var(--text-main)' }}
             >
               Start New Test →
             </Link>
@@ -205,12 +219,16 @@ export default function DashboardPage() {
             </ul>
           </div>
 
-          <div className="bg-yellow-100 border border-black rounded-xl p-6">
+          <div
+            className="border border-black rounded-xl p-6"
+            style={{ backgroundColor: 'var(--bg-card)' }}
+          >
             <div className="flex items-center justify-between gap-3 mb-4">
               <h3 className="font-semibold">Recent Tests</h3>
               <button
                 onClick={refresh}
-                className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition text-sm shrink-0"
+                className="px-3 py-2 rounded-lg border border-black transition text-sm shrink-0"
+                style={{ backgroundColor: 'var(--bg-button)', color: 'var(--text-main)' }}
               >
                 Refresh
               </button>
@@ -230,7 +248,8 @@ export default function DashboardPage() {
                 {safeResults.slice(0, 5).map((r) => (
                   <div
                     key={`${r.student_id}-${r.quiz_id}`}
-                    className="border border-black rounded-lg bg-yellow-50 p-3 flex items-center justify-between gap-3"
+                    className="border border-black rounded-lg p-3 flex items-center justify-between gap-3"
+                    style={{ backgroundColor: 'var(--bg-soft)' }}
                   >
                     <div className="min-w-0">
                       <p className="font-semibold">Score: {r.score}%</p>
@@ -239,7 +258,10 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    <span className="text-xs px-2 py-1 rounded-md border border-black bg-yellow-200 shrink-0">
+                    <span
+                      className="text-xs px-2 py-1 rounded-md border border-black shrink-0"
+                      style={{ backgroundColor: 'var(--bg-button)' }}
+                    >
                       Quiz #{r.quiz_id}
                     </span>
                   </div>

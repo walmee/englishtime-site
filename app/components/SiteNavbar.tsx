@@ -21,6 +21,7 @@ export default function SiteNavbar() {
 
   const [role, setRole] = useState<Role>("guest");
   const [username, setUsername] = useState("");
+  const [theme, setTheme] = useState("yellow");
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [openMain, setOpenMain] = useState<string | null>(null);
@@ -36,23 +37,26 @@ export default function SiteNavbar() {
       if (!session?.user) {
         setRole("guest");
         setUsername("");
+        setTheme("yellow");
         return;
       }
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, username")
+        .select("role, username, theme")
         .eq("id", session.user.id)
         .single();
 
       if (!profile) {
         setRole("student");
         setUsername(session.user.email || "");
+        setTheme("yellow");
         return;
       }
 
       setRole(profile.role === "admin" ? "admin" : "student");
       setUsername(profile.username || session.user.email || "");
+      setTheme(profile.theme || "yellow");
     };
 
     applyUser();
@@ -65,6 +69,10 @@ export default function SiteNavbar() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    document.body.setAttribute("data-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     if (mobileOpen) {
@@ -83,6 +91,7 @@ export default function SiteNavbar() {
     localStorage.removeItem("student_id");
     localStorage.removeItem("is_admin");
     localStorage.removeItem("admin_email");
+    document.body.setAttribute("data-theme", "yellow");
     window.location.href = "/";
   };
 
@@ -277,7 +286,6 @@ export default function SiteNavbar() {
         </div>
       </header>
 
-      {/* MOBILE OVERLAY */}
       <div
         className={`xl:hidden fixed inset-0 z-[999] transition ${
           mobileOpen ? "pointer-events-auto" : "pointer-events-none"
