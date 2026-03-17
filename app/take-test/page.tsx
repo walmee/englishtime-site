@@ -75,9 +75,33 @@ export default function TakeTestPage() {
     setMsg("");
     setLoadingQuizzes(true);
 
+    if (!studentId) {
+      setLoadingQuizzes(false);
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("level, class_name")
+      .eq("id", studentId)
+      .single();
+
+    if (profileError || !profile) {
+      setMsg("Profile information could not be loaded.");
+      setQuizzes([]);
+      setLoadingQuizzes(false);
+      return;
+    }
+
+    const level = profile.level ? String(profile.level).trim() : "all";
+    const className = profile.class_name ? String(profile.class_name).trim() : "all";
+
     const { data, error } = await supabase
       .from("quizzes")
       .select("id, title, unit")
+      .or(
+        `and(level.eq."${level}",class_name.eq."${className}"),and(level.eq."${level}",class_name.eq."all"),and(level.eq."all",class_name.eq."all")`
+      )
       .order("id", { ascending: false });
 
     if (error) {
@@ -90,8 +114,10 @@ export default function TakeTestPage() {
     const list = Array.isArray(data) ? (data as QuizRow[]) : [];
     setQuizzes(list);
 
-    if (!quizId && list.length > 0) {
+    if (list.length > 0) {
       setQuizId(list[0].id);
+    } else {
+      setQuizId(null);
     }
 
     setLoadingQuizzes(false);
@@ -123,12 +149,16 @@ export default function TakeTestPage() {
   };
 
   useEffect(() => {
-    loadQuizzes();
-  }, []);
+    if (studentId) {
+      loadQuizzes();
+    }
+  }, [studentId]);
 
   useEffect(() => {
     if (quizId) {
       loadQuestions(quizId);
+    } else {
+      setQuestions([]);
     }
   }, [quizId]);
 
@@ -197,8 +227,6 @@ export default function TakeTestPage() {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
-      
-
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
         <div className="bg-yellow-100 border border-black rounded-2xl p-6">
           <h2 className="text-2xl font-bold mb-2">Take a Test</h2>
@@ -219,11 +247,13 @@ export default function TakeTestPage() {
               <select
                 value={quizId ?? ""}
                 onChange={(e) => setQuizId(Number(e.target.value))}
-                disabled={loadingQuizzes || submitting}
+                disabled={loadingQuizzes || submitting || quizzes.length === 0}
                 className="w-full p-3 rounded-lg border border-black bg-yellow-50"
               >
                 {loadingQuizzes ? (
                   <option>Loading quizzes...</option>
+                ) : quizzes.length === 0 ? (
+                  <option>No quizzes available</option>
                 ) : (
                   quizzes.map((q) => (
                     <option key={q.id} value={q.id}>

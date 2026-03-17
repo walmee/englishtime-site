@@ -8,6 +8,8 @@ type QuizRow = {
     title: string;
     unit: string | null;
     time_limit_minutes: number | null;
+    level: string | null;
+    class_name: string | null;
     created_at?: string;
 };
 
@@ -21,13 +23,17 @@ export default function AdminQuizzesPage() {
     const [unit, setUnit] = useState('Unit 2');
     const [timeLimit, setTimeLimit] = useState(10);
 
+    // ✅ YENİ
+    const [level, setLevel] = useState('');
+    const [className, setClassName] = useState('');
+
     const load = async () => {
         setLoading(true);
         setMsg('');
 
         const { data, error } = await supabase
             .from('quizzes')
-            .select('id, title, unit, time_limit_minutes, created_at')
+            .select('id, title, unit, time_limit_minutes, level, class_name, created_at')
             .order('id', { ascending: false });
 
         if (error) {
@@ -47,8 +53,8 @@ export default function AdminQuizzesPage() {
 
     const createQuiz = async () => {
         setMsg('');
-        if (!title.trim()) {
-            setMsg('Title is required.');
+        if (!title.trim() || !level || !className) {
+            setMsg('Title, level ve class zorunlu.');
             return;
         }
 
@@ -56,6 +62,8 @@ export default function AdminQuizzesPage() {
             title: title.trim(),
             unit: unit.trim(),
             time_limit_minutes: Number(timeLimit) || 10,
+            level,
+            class_name: className,
         });
 
         if (error) {
@@ -64,6 +72,8 @@ export default function AdminQuizzesPage() {
         }
 
         setTitle('');
+        setLevel('');
+        setClassName('');
         await load();
     };
 
@@ -92,6 +102,7 @@ export default function AdminQuizzesPage() {
                     </div>
                 ) : null}
 
+                {/* FORM */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div className="md:col-span-2">
                         <label className="block text-sm font-bold mb-1">Title</label>
@@ -123,6 +134,40 @@ export default function AdminQuizzesPage() {
                             min={1}
                         />
                     </div>
+
+                    {/* ✅ LEVEL */}
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Level</label>
+                        <select
+                            value={level}
+                            onChange={(e) => setLevel(e.target.value)}
+                            className="w-full p-3 rounded-lg border border-black bg-yellow-50"
+                        >
+                            <option value="">Select</option>
+                            <option value="A1">A1</option>
+                            <option value="A2">A2</option>
+                            <option value="B1">B1</option>
+                            <option value="B2">B2</option>
+                            <option value="C1">C1</option>
+                            <option value="C2">C2</option>
+                            <option value="all">ALL</option>
+                        </select>
+                    </div>
+
+                    {/* ✅ CLASS */}
+                    <div>
+                        <label className="block text-sm font-bold mb-1">Class</label>
+                        <select
+                            value={className}
+                            onChange={(e) => setClassName(e.target.value)}
+                            className="w-full p-3 rounded-lg border border-black bg-yellow-50"
+                        >
+                            <option value="">Select</option>
+                            <option value="Arkansas">Arkansas</option>
+                            <option value="London">London</option>
+                            <option value="all">ALL</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button
@@ -133,6 +178,7 @@ export default function AdminQuizzesPage() {
                 </button>
             </div>
 
+            {/* LIST */}
             <div className="bg-yellow-100 border border-black rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">All Quizzes</h3>
@@ -162,19 +208,20 @@ export default function AdminQuizzesPage() {
                                 <div>
                                     <div className="font-bold text-lg">{q.title}</div>
                                     <div className="text-xs">
-                                        Unit: <b>{q.unit ?? '-'}</b> • Time: <b>{q.time_limit_minutes ?? 10} min</b> • ID #{q.id}
+                                        Unit: <b>{q.unit ?? '-'}</b> • 
+                                        Level: <b>{q.level ?? '-'}</b> • 
+                                        Class: <b>{q.class_name ?? '-'}</b> • 
+                                        Time: <b>{q.time_limit_minutes ?? 10} min</b> • 
+                                        ID #{q.id}
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2">
-                                    {/* İstersen sonra Edit butonu ekleriz */}
-                                    <button
-                                        onClick={() => deleteQuiz(q.id)}
-                                        className="px-4 py-2 rounded-lg border border-black bg-red-100 hover:bg-red-200 transition font-bold"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={() => deleteQuiz(q.id)}
+                                    className="px-4 py-2 rounded-lg border border-black bg-red-100 hover:bg-red-200 transition font-bold"
+                                >
+                                    Delete
+                                </button>
                             </div>
                         ))}
                     </div>

@@ -75,11 +75,11 @@ export default function SiteNavbar() {
   };
 
   const publicItems: MenuItem[] = [
-    { key: "home", label: "Ana Sayfa", href: "/" },
-    { key: "announcements", label: "Duyurular", href: "/#announcements" },
-    { key: "daily-words", label: "Günün Kelimeleri", href: "/#daily-words" },
-    { key: "daily-texts", label: "Günün Metni", href: "/#daily-texts" },
-    { key: "activities", label: "Etkinlikler", href: "/#activities" },
+    { key: "home", label: "Home", href: "/" },
+    { key: "announcements", label: "Announcements", href: "/#announcements" },
+    { key: "daily-words", label: "Word of the Day", href: "/#daily-words" },
+    { key: "daily-texts", label: "Daily Reading", href: "/#daily-texts" },
+    { key: "activities", label: "Activities", href: "/#activities" },
   ];
 
   const studentItems: MenuItem[] = [
@@ -111,9 +111,13 @@ export default function SiteNavbar() {
       label: "Admin",
       children: [
         { key: "admin-home", label: "Overview", href: "/admin" },
-        { key: "admin-users", label: "Students", href: "/admin/users" },
         { key: "admin-quizzes", label: "Quizzes", href: "/admin/quizzes" },
+        { key: "admin-questions", label: "Questions", href: "/admin/questions" },
+        { key: "admin-classes", label: "Classes", href: "/admin/classes" },
+        { key: "admin-users", label: "Students", href: "/admin/users" },
         { key: "admin-worksheets", label: "Worksheets", href: "/admin/worksheets" },
+        { key: "admin-leaderboard", label: "Leaderboard", href: "/admin/leaderboard" },
+        { key: "admin-tools", label: "Tools", href: "/admin/tools" },
       ],
     },
     {
@@ -121,6 +125,9 @@ export default function SiteNavbar() {
       label: "Student View",
       children: [
         { key: "dashboard", label: "Dashboard", href: "/dashboard" },
+        { key: "take-test", label: "Take Test", href: "/take-test" },
+        { key: "history", label: "History", href: "/history" },
+        { key: "progress", label: "Progress", href: "/progress" },
         { key: "leaderboard", label: "Leaderboard", href: "/leaderboard" },
         { key: "worksheets", label: "Worksheets", href: "/worksheets" },
       ],
@@ -191,15 +198,6 @@ export default function SiteNavbar() {
                 </Link>
               ) : (
                 <>
-                  {role === "admin" ? (
-                    <Link
-                      href="/admin"
-                      className={accountButtonClass(pathname === "/admin")}
-                    >
-                      Admin Panel
-                    </Link>
-                  ) : null}
-
                   <div
                     className="relative"
                     onMouseEnter={() => setOpenAccount(true)}
@@ -253,13 +251,6 @@ export default function SiteNavbar() {
                       </div>
                     ) : null}
                   </div>
-
-                  <button
-                    onClick={logout}
-                    className="rounded-full bg-black px-5 py-3 text-sm font-bold text-yellow-300 transition hover:bg-gray-800"
-                  >
-                    Logout
-                  </button>
                 </>
               )}
             </div>
@@ -269,7 +260,7 @@ export default function SiteNavbar() {
             className="xl:hidden rounded-xl border border-black px-4 py-2 font-semibold bg-white text-black"
             onClick={() => setMobileOpen((v) => !v)}
           >
-            Menü
+            Menu
           </button>
         </div>
 
