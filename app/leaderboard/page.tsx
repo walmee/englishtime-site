@@ -149,52 +149,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
-      <header className="border-b border-black bg-yellow-200 w-full overflow-x-hidden">
-        <div className="w-full px-3 py-4 md:max-w-6xl md:mx-auto">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h1 className="text-xl font-bold">English Time</h1>
-
-            <nav className="flex flex-wrap gap-2">
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/take-test"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
-                Take Test
-              </Link>
-              <Link
-                href="/history"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
-                History
-              </Link>
-              <Link
-                href="/progress"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
-                Progress
-              </Link>
-              <Link
-                href="/leaderboard"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold"
-              >
-                Leaderboard
-              </Link>
-              <Link
-                href="/worksheets"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
-                Worksheets
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      
 
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
         <div className="bg-yellow-100 border border-black rounded-2xl p-6">

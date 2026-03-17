@@ -153,71 +153,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
-      <header className="border-b border-black bg-yellow-200 w-full overflow-x-hidden">
-        <div className="w-full px-3 py-4 md:max-w-6xl md:mx-auto">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h1 className="text-xl font-bold">English Time</h1>
-
-            <nav className="flex flex-wrap gap-2">
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-500 font-bold"
-                href="/dashboard"
-              >
-                Dashboard
-              </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/take-test"
-              >
-                Take Test
-              </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/history"
-              >
-                History
-              </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/progress"
-              >
-                Progress
-              </Link>
-
-              <Link
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-                href="/leaderboard"
-              >
-                Leaderboard
-              </Link>
-
-              <Link
-                href="/worksheets"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
-                Worksheets
-              </Link>
-
-              <Link
-                href="/change-password"
-                className="px-4 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition"
-              >
-                Change Password
-              </Link>
-
-              <button
-                onClick={logout}
-                className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition"
-              >
-                Logout
-              </button>
-            </nav>
-          </div>
-        </div>
-      </header>
+     
 
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden">
         <h2 className="text-2xl font-bold mb-2 break-words">

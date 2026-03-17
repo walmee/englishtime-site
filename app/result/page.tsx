@@ -14,29 +14,7 @@ function ResultContent() {
 
   return (
     <div className="min-h-screen bg-yellow-300 text-black">
-      <header className="border-b border-black bg-yellow-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Language Learning</h1>
-
-          <nav className="flex gap-3">
-            <Link className="px-4 py-2 border border-black rounded-lg bg-yellow-300" href="/dashboard">
-              Dashboard
-            </Link>
-            <Link className="px-4 py-2 border border-black rounded-lg bg-yellow-300" href="/take-test">
-              Take Test
-            </Link>
-            <Link className="px-4 py-2 border border-black rounded-lg bg-yellow-300" href="/history">
-              History
-            </Link>
-            <Link className="px-4 py-2 border border-black rounded-lg bg-yellow-300" href="/progress">
-              Progress
-            </Link>
-            <Link className="px-4 py-2 border border-black rounded-lg bg-yellow-300" href="/leaderboard">
-              Leaderboard
-            </Link>
-          </nav>
-        </div>
-      </header>
+      
 
       <main className="max-w-3xl mx-auto px-6 py-10">
         <h2 className="text-2xl font-bold mb-2">Result</h2>
