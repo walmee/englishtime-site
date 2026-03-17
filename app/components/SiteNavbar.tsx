@@ -66,6 +66,18 @@ export default function SiteNavbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
+
   const logout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem("student_id");
@@ -159,45 +171,45 @@ export default function SiteNavbar() {
   const initial = username?.trim()?.charAt(0)?.toUpperCase() || "U";
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#d7cfbe] bg-[#fffdf7]">
-      <div className="w-full px-4 py-4 md:max-w-7xl md:mx-auto">
-        <div className="flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 shrink-0">
-            <Image
-              src="/logo.svg"
-              alt="English Time"
-              width={170}
-              height={56}
-              className="h-12 w-auto object-contain"
-              priority
-            />
-          </Link>
+    <>
+      <header className="sticky top-0 z-50 w-full border-b border-[#d7cfbe] bg-[#fffdf7]">
+        <div className="w-full px-4 py-4 md:max-w-7xl md:mx-auto">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/" className="flex items-center gap-3 shrink-0">
+              <Image
+                src="/logo.svg"
+                alt="English Time"
+                width={170}
+                height={56}
+                className="h-12 w-auto object-contain"
+                priority
+              />
+            </Link>
 
-          <div className="hidden xl:flex items-center gap-3">
-            <nav className="flex items-center gap-1 rounded-full border border-[#d7cfbe] bg-white px-2 py-2 shadow-sm">
-              {navItems.map((item) => (
-                <DesktopNavItem
-                  key={item.key}
-                  item={item}
-                  pathname={pathname}
-                  openMain={openMain}
-                  setOpenMain={setOpenMain}
-                  openSub={openSub}
-                  setOpenSub={setOpenSub}
-                />
-              ))}
-            </nav>
+            <div className="hidden xl:flex items-center gap-3">
+              <nav className="flex items-center gap-1 rounded-full border border-[#d7cfbe] bg-white px-2 py-2 shadow-sm">
+                {navItems.map((item) => (
+                  <DesktopNavItem
+                    key={item.key}
+                    item={item}
+                    pathname={pathname}
+                    openMain={openMain}
+                    setOpenMain={setOpenMain}
+                    openSub={openSub}
+                    setOpenSub={setOpenSub}
+                  />
+                ))}
+              </nav>
 
-            <div className="flex items-center gap-2">
-              {role === "guest" ? (
-                <Link
-                  href="/login"
-                  className={accountButtonClass(pathname === "/login", true)}
-                >
-                  Login
-                </Link>
-              ) : (
-                <>
+              <div className="flex items-center gap-2">
+                {role === "guest" ? (
+                  <Link
+                    href="/login"
+                    className={accountButtonClass(pathname === "/login", true)}
+                  >
+                    Login
+                  </Link>
+                ) : (
                   <div
                     className="relative"
                     onMouseEnter={() => setOpenAccount(true)}
@@ -251,110 +263,160 @@ export default function SiteNavbar() {
                       </div>
                     ) : null}
                   </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
+
+            <button
+              className="xl:hidden rounded-xl border border-black px-4 py-2 font-semibold bg-white text-black"
+              onClick={() => setMobileOpen(true)}
+            >
+              Menu
+            </button>
           </div>
-
-          <button
-            className="xl:hidden rounded-xl border border-black px-4 py-2 font-semibold bg-white text-black"
-            onClick={() => setMobileOpen((v) => !v)}
-          >
-            Menu
-          </button>
         </div>
+      </header>
 
-        {mobileOpen ? (
-          <div className="xl:hidden mt-4 rounded-3xl border border-[#d7cfbe] bg-[#f7f1e3] p-4 shadow-md">
-            <div className="grid grid-cols-1 gap-3">
-              {navItems.map((item) =>
-                item.href ? (
-                  <Link
-                    key={item.key}
-                    href={item.href}
-                    className={mobileLinkClass(pathname === item.href)}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                ) : (
-                  <div key={item.key} className="rounded-2xl border border-[#d7cfbe] bg-[#fffdf7] p-3">
-                    <p className="mb-3 px-2 text-sm font-bold text-[#6b6248]">{item.label}</p>
-                    <div className="grid grid-cols-1 gap-2">
-                      {item.children?.map((child) =>
-                        child.href ? (
-                          <Link
-                            key={child.key}
-                            href={child.href}
-                            className={mobileLinkClass(pathname === child.href)}
-                            onClick={() => setMobileOpen(false)}
-                          >
-                            {child.label}
-                          </Link>
-                        ) : (
-                          <button
-                            key={child.key}
-                            onClick={() => {
-                              child.action?.();
-                              setMobileOpen(false);
-                            }}
-                            className="rounded-2xl border border-[#d7cfbe] bg-white px-4 py-3 text-left font-medium text-black hover:bg-[#f5e7b8]"
-                          >
-                            {child.label}
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )
-              )}
+      {/* MOBILE OVERLAY */}
+      <div
+        className={`xl:hidden fixed inset-0 z-[999] transition ${
+          mobileOpen ? "pointer-events-auto" : "pointer-events-none"
+        }`}
+      >
+        <div
+          className={`absolute inset-0 bg-black/35 transition-opacity duration-300 ${
+            mobileOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setMobileOpen(false)}
+        />
 
-              <div className="mt-1 grid grid-cols-1 gap-2">
-                {role !== "guest" && username ? (
-                  <div className="rounded-2xl border border-[#d7cfbe] bg-white px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e0b33a] text-black text-sm font-bold">
-                        {initial}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-[#2b2b2b]">{username}</div>
-                        <div className="text-xs text-[#6b6248]">
-                          {role === "admin" ? "Admin" : "Student"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
+        <div
+          className={`absolute right-0 top-0 h-full w-full max-w-[420px] bg-[#fffdf7] shadow-2xl border-l border-[#d7cfbe] transition-transform duration-300 ${
+            mobileOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b border-[#d7cfbe] px-5 py-4">
+              <div className="flex items-center gap-3">
+                <Image
+                  src="/logo.svg"
+                  alt="English Time"
+                  width={150}
+                  height={48}
+                  className="h-10 w-auto object-contain"
+                />
+              </div>
 
-                {mobileAccountItems.map((item) =>
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl border border-black px-4 py-2 font-semibold bg-white text-black"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+              <div className="grid grid-cols-1 gap-3">
+                {navItems.map((item) =>
                   item.href ? (
                     <Link
                       key={item.key}
                       href={item.href}
-                      className={mobileAccountClass(pathname === item.href, item.label === "Login")}
+                      className={mobileLinkClass(pathname === item.href)}
                       onClick={() => setMobileOpen(false)}
                     >
                       {item.label}
                     </Link>
                   ) : (
-                    <button
+                    <div
                       key={item.key}
-                      onClick={() => {
-                        item.action?.();
-                        setMobileOpen(false);
-                      }}
-                      className="rounded-2xl bg-black px-4 py-3 font-bold text-yellow-300"
+                      className="rounded-2xl border border-[#d7cfbe] bg-[#f7f1e3] p-3"
                     >
-                      {item.label}
-                    </button>
+                      <p className="mb-3 px-2 text-sm font-bold text-[#6b6248]">
+                        {item.label}
+                      </p>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        {item.children?.map((child) =>
+                          child.href ? (
+                            <Link
+                              key={child.key}
+                              href={child.href}
+                              className={mobileLinkClass(pathname === child.href)}
+                              onClick={() => setMobileOpen(false)}
+                            >
+                              {child.label}
+                            </Link>
+                          ) : (
+                            <button
+                              key={child.key}
+                              onClick={() => {
+                                child.action?.();
+                                setMobileOpen(false);
+                              }}
+                              className="rounded-2xl border border-[#d7cfbe] bg-white px-4 py-3 text-left font-medium text-black hover:bg-[#f5e7b8]"
+                            >
+                              {child.label}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
                   )
                 )}
+
+                <div className="mt-1 grid grid-cols-1 gap-2">
+                  {role !== "guest" && username ? (
+                    <div className="rounded-2xl border border-[#d7cfbe] bg-white px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e0b33a] text-black text-sm font-bold">
+                          {initial}
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-[#2b2b2b]">
+                            {username}
+                          </div>
+                          <div className="text-xs text-[#6b6248]">
+                            {role === "admin" ? "Admin" : "Student"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {mobileAccountItems.map((item) =>
+                    item.href ? (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        className={mobileAccountClass(
+                          pathname === item.href,
+                          item.label === "Login"
+                        )}
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <button
+                        key={item.key}
+                        onClick={() => {
+                          item.action?.();
+                          setMobileOpen(false);
+                        }}
+                        className="rounded-2xl bg-black px-4 py-3 font-bold text-yellow-300"
+                      >
+                        {item.label}
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        ) : null}
+        </div>
       </div>
-    </header>
+    </>
   );
 }
 
