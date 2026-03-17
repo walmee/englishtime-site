@@ -26,36 +26,46 @@ export default function SiteNavbar() {
   const [openMain, setOpenMain] = useState<string | null>(null);
   const [openSub, setOpenSub] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+ useEffect(() => {
+  const applyUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      if (!session?.user) {
-        setRole("guest");
-        setUsername("");
-        return;
-      }
+    if (!session?.user) {
+      setRole("guest");
+      setUsername("");
+      return;
+    }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, username")
-        .eq("id", session.user.id)
-        .single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, username")
+      .eq("id", session.user.id)
+      .single();
 
-      if (!profile) {
-        setRole("student");
-        setUsername(session.user.email || "");
-        return;
-      }
+    if (!profile) {
+      setRole("student");
+      setUsername(session.user.email || "");
+      return;
+    }
 
-      setRole(profile.role === "admin" ? "admin" : "student");
-      setUsername(profile.username || session.user.email || "");
-    };
+    setRole(profile.role === "admin" ? "admin" : "student");
+    setUsername(profile.username || session.user.email || "");
+  };
 
-    loadUser();
-  }, []);
+  applyUser();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(() => {
+    applyUser();
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
 
   const logout = async () => {
     await supabase.auth.signOut();
