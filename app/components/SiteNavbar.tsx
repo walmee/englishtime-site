@@ -27,6 +27,7 @@ export default function SiteNavbar() {
   const [openMain, setOpenMain] = useState<string | null>(null);
   const [openSub, setOpenSub] = useState<string | null>(null);
   const [openAccount, setOpenAccount] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     const applyUser = async () => {
@@ -63,8 +64,18 @@ export default function SiteNavbar() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      applyUser();
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setRole("guest");
+        setUsername("");
+        setTheme("yellow");
+        setOpenAccount(false);
+        setMobileOpen(false);
+        document.body.setAttribute("data-theme", "yellow");
+        document.body.style.overflow = "";
+      } else {
+        applyUser();
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -87,12 +98,31 @@ export default function SiteNavbar() {
   }, [mobileOpen]);
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem("student_id");
-    localStorage.removeItem("is_admin");
-    localStorage.removeItem("admin_email");
-    document.body.setAttribute("data-theme", "yellow");
-    window.location.href = "/";
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      setRole("guest");
+      setUsername("");
+      setTheme("yellow");
+      setOpenAccount(false);
+      setMobileOpen(false);
+
+      document.body.setAttribute("data-theme", "yellow");
+      document.body.style.overflow = "";
+
+      localStorage.removeItem("student_id");
+      localStorage.removeItem("is_admin");
+      localStorage.removeItem("admin_email");
+      sessionStorage.clear();
+
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      window.location.replace("/login");
+    }
   };
 
   const publicItems: MenuItem[] = [
@@ -168,15 +198,15 @@ export default function SiteNavbar() {
       return [
         { key: "admin-panel", label: "Admin Panel", href: "/admin" },
         { key: "change-password", label: "Change Password", href: "/change-password" },
-        { key: "logout", label: "Logout", action: logout },
+        { key: "logout", label: loggingOut ? "Logging out..." : "Logout", action: logout },
       ];
     }
 
     return [
       { key: "change-password", label: "Change Password", href: "/change-password" },
-      { key: "logout", label: "Logout", action: logout },
+      { key: "logout", label: loggingOut ? "Logging out..." : "Logout", action: logout },
     ];
-  }, [role]);
+  }, [role, loggingOut]);
 
   const initial = username?.trim()?.charAt(0)?.toUpperCase() || "U";
 
@@ -191,7 +221,7 @@ export default function SiteNavbar() {
                 alt="English Time"
                 width={170}
                 height={56}
-                className="h-12 w-auto object-contain"
+                className="h-18 w-auto object-contain"
                 priority
               />
             </Link>
@@ -266,9 +296,10 @@ export default function SiteNavbar() {
 
                         <button
                           onClick={logout}
-                          className="block w-full px-5 py-4 text-left text-sm font-bold text-[#222222] transition hover:bg-[#f5e7b8]"
+                          disabled={loggingOut}
+                          className="block w-full px-5 py-4 text-left text-sm font-bold text-[#222222] transition hover:bg-[#f5e7b8] disabled:opacity-60"
                         >
-                          Logout
+                          {loggingOut ? "Logging out..." : "Logout"}
                         </button>
                       </div>
                     ) : null}
@@ -413,7 +444,8 @@ export default function SiteNavbar() {
                           item.action?.();
                           setMobileOpen(false);
                         }}
-                        className="rounded-2xl bg-black px-4 py-3 font-bold text-yellow-300"
+                        disabled={loggingOut}
+                        className="rounded-2xl bg-black px-4 py-3 font-bold text-yellow-300 disabled:opacity-60"
                       >
                         {item.label}
                       </button>
