@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
@@ -15,7 +14,6 @@ export default function ChangePasswordPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // ✅ Login guard + email'i al
   useEffect(() => {
     const sid = (localStorage.getItem("student_id") || "").trim();
     if (!sid) {
@@ -54,7 +52,6 @@ export default function ChangePasswordPage() {
     setSaving(true);
 
     try {
-      // ✅ 1) Önce mevcut şifre doğru mu kontrol et (re-login)
       const { error: signErr } = await supabase.auth.signInWithPassword({
         email,
         password: currentPassword,
@@ -65,7 +62,6 @@ export default function ChangePasswordPage() {
         return;
       }
 
-      // ✅ 2) Şifreyi güncelle
       const { error: updErr } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -87,8 +83,14 @@ export default function ChangePasswordPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-yellow-300 text-black flex items-center justify-center p-6">
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+      <div
+        className="min-h-screen flex items-center justify-center p-6"
+        style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+      >
+        <div
+          className="border border-black rounded-2xl p-6"
+          style={{ backgroundColor: "var(--bg-card)" }}
+        >
           Loading...
         </div>
       </div>
@@ -96,19 +98,25 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-yellow-300 text-black">
-      {/* TOP NAVBAR */}
-     
-
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+    >
       <main className="max-w-md mx-auto px-6 py-10">
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+        <div
+          className="border border-black rounded-2xl p-6"
+          style={{ backgroundColor: "var(--bg-card)" }}
+        >
           <h2 className="text-2xl font-bold mb-2">Change Password</h2>
           <p className="text-sm opacity-90 mb-4">
             Logged in as: <b>{email || "-"}</b>
           </p>
 
           {msg ? (
-            <div className="mb-4 bg-yellow-50 border border-black rounded-xl p-3">
+            <div
+              className="mb-4 border border-black rounded-xl p-3"
+              style={{ backgroundColor: "var(--bg-soft)" }}
+            >
               <p className="text-sm font-bold">{msg}</p>
             </div>
           ) : null}
@@ -118,7 +126,8 @@ export default function ChangePasswordPage() {
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full p-3 rounded-lg border border-black bg-yellow-50 mb-4"
+            className="w-full p-3 rounded-lg border border-black mb-4"
+            style={{ backgroundColor: "var(--bg-soft)", color: "var(--text-main)" }}
             placeholder="Current password"
           />
 
@@ -127,14 +136,16 @@ export default function ChangePasswordPage() {
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full p-3 rounded-lg border border-black bg-yellow-50 mb-4"
+            className="w-full p-3 rounded-lg border border-black mb-4"
+            style={{ backgroundColor: "var(--bg-soft)", color: "var(--text-main)" }}
             placeholder="New password (min 6 chars)"
           />
 
           <button
             onClick={onChangePassword}
             disabled={saving}
-            className="w-full py-3 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 disabled:opacity-60"
+            className="w-full py-3 rounded-lg border border-black font-bold transition disabled:opacity-60"
+            style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
           >
             {saving ? "Updating..." : "Update Password"}
           </button>

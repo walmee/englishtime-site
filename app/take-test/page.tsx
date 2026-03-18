@@ -71,6 +71,15 @@ export default function TakeTestPage() {
     return Object.keys(answers).length;
   }, [answers]);
 
+  const selectedQuiz = useMemo(() => {
+    return quizzes.find((q) => q.id === quizId) || null;
+  }, [quizzes, quizId]);
+
+  const getQuizLabel = (quiz: QuizRow) => {
+    if (quiz.unit && quiz.title) return `${quiz.unit} • ${quiz.title}`;
+    return quiz.title || quiz.unit || "Quiz";
+  };
+
   const loadQuizzes = async () => {
     setMsg("");
     setLoadingQuizzes(true);
@@ -264,7 +273,7 @@ export default function TakeTestPage() {
                 ) : (
                   quizzes.map((q) => (
                     <option key={q.id} value={q.id}>
-                      #{q.id} • {q.unit ?? "-"} • {q.title}
+                      {getQuizLabel(q)}
                     </option>
                   ))
                 )}
@@ -289,7 +298,14 @@ export default function TakeTestPage() {
           style={{ backgroundColor: "var(--bg-card)" }}
         >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h3 className="text-xl font-bold">Questions</h3>
+            <div>
+              <h3 className="text-xl font-bold">Questions</h3>
+              {selectedQuiz ? (
+                <p className="text-sm opacity-80 mt-1 break-words">
+                  {getQuizLabel(selectedQuiz)}
+                </p>
+              ) : null}
+            </div>
 
             <div className="flex flex-wrap gap-2">
               {!finished ? (
@@ -388,6 +404,9 @@ export default function TakeTestPage() {
             style={{ backgroundColor: "var(--bg-card)" }}
           >
             <h3 className="text-xl font-bold mb-2">Result</h3>
+            {selectedQuiz ? (
+              <p className="text-sm mb-2 break-words">{getQuizLabel(selectedQuiz)}</p>
+            ) : null}
             <p className="text-sm mb-4">
               Score is saved to leaderboard after you submit this quiz.
             </p>

@@ -137,6 +137,7 @@ export default function SiteNavbar() {
         { key: "admin-classes", label: "Classes", href: "/admin/classes" },
         { key: "admin-users", label: "Students", href: "/admin/users" },
         { key: "admin-worksheets", label: "Worksheets", href: "/admin/worksheets" },
+        { key: "admin-reading-texts", label: "Reading Texts", href: "/admin/reading-texts" },
         { key: "admin-leaderboard", label: "Leaderboard", href: "/admin/leaderboard" },
         { key: "admin-tools", label: "Tools", href: "/admin/tools" },
       ],

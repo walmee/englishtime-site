@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabaseClient';
@@ -39,7 +38,6 @@ export default function WorksheetsPage() {
 
       const userId = session.user.id;
 
-      // 1) öğrencinin class_id bilgisini al
       const { data: classStudent, error: classStudentError } = await supabase
         .from('class_students')
         .select('class_id')
@@ -55,7 +53,6 @@ export default function WorksheetsPage() {
         return;
       }
 
-      // 2) sadece kendi sınıfına ait worksheetleri çek
       const { data, error } = await supabase
         .from('worksheets')
         .select('id, title, description, file_url, class_id, created_at')
@@ -83,11 +80,15 @@ export default function WorksheetsPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
-     
-
+    <div
+      className="min-h-screen w-full overflow-x-hidden text-black"
+      style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}
+    >
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto">
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+        <div
+          className="border border-black rounded-2xl p-6"
+          style={{ backgroundColor: 'var(--bg-card)' }}
+        >
           <h2 className="text-2xl font-bold mb-2">Worksheets</h2>
           <p className="mb-6">Download the worksheets shared for your class.</p>
 
@@ -109,7 +110,11 @@ export default function WorksheetsPage() {
           ) : (
             <div className="space-y-4">
               {worksheets.map((w) => (
-                <div key={w.id} className="bg-yellow-50 border border-black rounded-xl p-4">
+                <div
+                  key={w.id}
+                  className="border border-black rounded-xl p-4"
+                  style={{ backgroundColor: 'var(--bg-soft)' }}
+                >
                   <h3 className="text-lg font-bold">{w.title}</h3>
 
                   {w.description ? (
@@ -122,12 +127,16 @@ export default function WorksheetsPage() {
                         href={w.file_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-4 py-2 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-800 transition"
+                        className="px-4 py-2 rounded-lg border border-black font-bold transition"
+                        style={{ backgroundColor: 'var(--bg-button)', color: 'var(--text-main)' }}
                       >
                         Open PDF
                       </a>
                     ) : (
-                      <span className="px-4 py-2 rounded-lg border border-black bg-gray-200">
+                      <span
+                        className="px-4 py-2 rounded-lg border border-black"
+                        style={{ backgroundColor: 'var(--bg-card)' }}
+                      >
                         No PDF
                       </span>
                     )}

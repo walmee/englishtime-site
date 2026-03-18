@@ -12,6 +12,12 @@ type ResultRow = {
   created_at?: string | null;
 };
 
+type QuizMeta = {
+  id: number;
+  title: string;
+  unit: string | null;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -20,6 +26,7 @@ export default function DashboardPage() {
   const [profileName, setProfileName] = useState('');
   const [profileLevel, setProfileLevel] = useState('');
   const [results, setResults] = useState<ResultRow[] | undefined>([]);
+  const [quizMap, setQuizMap] = useState<Record<number, QuizMeta>>({});
   const [error, setError] = useState('');
 
   const safeResults: ResultRow[] = Array.isArray(results) ? results : [];
@@ -66,6 +73,31 @@ export default function DashboardPage() {
     };
   }, [router]);
 
+  const loadQuizMeta = async (rows: ResultRow[]) => {
+    const quizIds = [...new Set(rows.map((r) => Number(r.quiz_id)).filter(Boolean))];
+
+    if (quizIds.length === 0) {
+      setQuizMap({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('quizzes')
+      .select('id, title, unit')
+      .in('id', quizIds);
+
+    if (error || !Array.isArray(data)) {
+      setQuizMap({});
+      return;
+    }
+
+    const map: Record<number, QuizMeta> = {};
+    for (const item of data as QuizMeta[]) {
+      map[item.id] = item;
+    }
+    setQuizMap(map);
+  };
+
   useEffect(() => {
     if (!userId) return;
 
@@ -79,6 +111,7 @@ export default function DashboardPage() {
         .from('leaderboard')
         .select('student_id, quiz_id, score, created_at')
         .eq('student_id', userId)
+        .order('created_at', { ascending: false })
         .limit(10);
 
       if (cancelled) return;
@@ -88,12 +121,18 @@ export default function DashboardPage() {
           setError(error.message);
         }
         setResults([]);
+        setQuizMap({});
         setLoading(false);
         return;
       }
 
-      setResults(Array.isArray(data) ? (data as ResultRow[]) : []);
-      setLoading(false);
+      const rows = Array.isArray(data) ? (data as ResultRow[]) : [];
+      setResults(rows);
+      await loadQuizMeta(rows);
+
+      if (!cancelled) {
+        setLoading(false);
+      }
     };
 
     load();
@@ -121,6 +160,7 @@ export default function DashboardPage() {
       .from('leaderboard')
       .select('student_id, quiz_id, score, created_at')
       .eq('student_id', userId)
+      .order('created_at', { ascending: false })
       .limit(10);
 
     if (error) {
@@ -128,27 +168,22 @@ export default function DashboardPage() {
         setError(error.message);
       }
       setResults([]);
+      setQuizMap({});
       setLoading(false);
       return;
     }
 
-    setResults(Array.isArray(data) ? (data as ResultRow[]) : []);
+    const rows = Array.isArray(data) ? (data as ResultRow[]) : [];
+    setResults(rows);
+    await loadQuizMeta(rows);
     setLoading(false);
   };
 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error(e);
-    }
-
-    localStorage.removeItem('student_id');
-    localStorage.removeItem('is_admin');
-    localStorage.removeItem('admin_email');
-
-    router.replace('/login');
-    window.location.href = '/login';
+  const getQuizLabel = (quizId: number) => {
+    const quiz = quizMap[quizId];
+    if (!quiz) return 'Quiz';
+    if (quiz.unit && quiz.title) return `${quiz.unit} • ${quiz.title}`;
+    return quiz.title || quiz.unit || 'Quiz';
   };
 
   return (
@@ -252,7 +287,8 @@ export default function DashboardPage() {
                     style={{ backgroundColor: 'var(--bg-soft)' }}
                   >
                     <div className="min-w-0">
-                      <p className="font-semibold">Score: {r.score}%</p>
+                      <p className="font-semibold break-words">{getQuizLabel(r.quiz_id)}</p>
+                      <p className="text-sm">Score: {r.score}%</p>
                       <p className="text-xs break-words">
                         {r.created_at ? new Date(r.created_at).toLocaleString() : 'No date'}
                       </p>
@@ -262,7 +298,7 @@ export default function DashboardPage() {
                       className="text-xs px-2 py-1 rounded-md border border-black shrink-0"
                       style={{ backgroundColor: 'var(--bg-button)' }}
                     >
-                      Quiz #{r.quiz_id}
+                      Completed
                     </span>
                   </div>
                 ))}

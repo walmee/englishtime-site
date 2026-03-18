@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function HomePage() {
   return (
     <div
@@ -12,12 +14,12 @@ export default function HomePage() {
                 English Time
               </p>
               <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-                Şimdi İngilizce
-                <span className="text-yellow-300"> Zamanı!</span>
+                It&apos;s Time for
+                <span className="text-yellow-300"> English!</span>
               </h1>
               <p className="mt-6 text-white/80 max-w-xl text-lg leading-8">
-                Günün kelimeleri, seviyene uygun metinler, speaking club duyuruları
-                ve sınıf içeriklerine tek yerden ulaş.
+                Access daily words, level-based reading texts, speaking club
+                announcements, and class content all in one place.
               </p>
             </div>
 
@@ -25,15 +27,18 @@ export default function HomePage() {
               <a
                 href="#daily-texts"
                 className="rounded-full px-6 py-3 font-bold transition border border-black"
-                style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
+                style={{
+                  backgroundColor: "var(--bg-button)",
+                  color: "var(--text-main)",
+                }}
               >
-                Günün Metnini İncele
+                Explore Daily Readings
               </a>
               <a
                 href="/login"
                 className="rounded-full border border-white/30 px-6 py-3 font-semibold hover:bg-white/10 transition"
               >
-                Giriş Yap
+                Login
               </a>
             </div>
           </div>
@@ -42,7 +47,7 @@ export default function HomePage() {
             className="border border-black/15 rounded-3xl p-6 min-h-[360px]"
             style={{ backgroundColor: "var(--bg-card)" }}
           >
-            <h2 className="text-2xl font-bold mb-4">Bugün Neler Var?</h2>
+            <h2 className="text-2xl font-bold mb-4">What&apos;s Happening Today?</h2>
 
             <div className="space-y-4">
               <div
@@ -50,11 +55,11 @@ export default function HomePage() {
                 style={{ backgroundColor: "var(--bg-soft)" }}
               >
                 <p className="text-sm" style={{ color: "var(--text-soft)" }}>
-                  Duyuru
+                  Announcement
                 </p>
-                <p className="font-bold mt-1">Speaking Club Cuma 19:30</p>
+                <p className="font-bold mt-1">Speaking Club - Friday 19:30</p>
                 <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                  Katılım için öğretmeninizin yönlendirmesini takip edin.
+                  Please follow your teacher&apos;s instructions for participation.
                 </p>
               </div>
 
@@ -63,7 +68,7 @@ export default function HomePage() {
                 style={{ backgroundColor: "var(--bg-soft)" }}
               >
                 <p className="text-sm" style={{ color: "var(--text-soft)" }}>
-                  Günün Kelimesi
+                  Word of the Day
                 </p>
                 <p className="font-bold mt-1 text-xl">Improve</p>
                 <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
@@ -76,11 +81,11 @@ export default function HomePage() {
                 style={{ backgroundColor: "var(--bg-soft)" }}
               >
                 <p className="text-sm" style={{ color: "var(--text-soft)" }}>
-                  Günün Metni
+                  Reading of the Day
                 </p>
                 <p className="font-bold mt-1">B1 Reading Practice</p>
                 <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                  Seviyene göre kısa okuma metinlerini incele.
+                  Open short reading texts prepared for your level.
                 </p>
               </div>
             </div>
@@ -92,9 +97,9 @@ export default function HomePage() {
           className="border border-black/15 rounded-3xl p-8"
           style={{ backgroundColor: "var(--bg-card)" }}
         >
-          <h2 className="text-3xl font-bold mb-4">Duyurular</h2>
+          <h2 className="text-3xl font-bold mb-4">Announcements</h2>
           <p className="mb-6" style={{ color: "var(--text-soft)" }}>
-            Kurs ve sınıf duyurularını buradan takip edebilirsin.
+            Follow course and class announcements here.
           </p>
 
           <div className="grid md:grid-cols-3 gap-4">
@@ -104,7 +109,7 @@ export default function HomePage() {
             >
               <h3 className="font-bold">Speaking Club</h3>
               <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                Bu hafta speaking club etkinliği cuma günü yapılacaktır.
+                This week&apos;s speaking club activity will be held on Friday.
               </p>
             </div>
 
@@ -114,7 +119,7 @@ export default function HomePage() {
             >
               <h3 className="font-bold">Worksheet Submission</h3>
               <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                Worksheet teslim tarihlerini kaçırmamayı unutmayın.
+                Don&apos;t forget to check worksheet submission deadlines.
               </p>
             </div>
 
@@ -124,7 +129,7 @@ export default function HomePage() {
             >
               <h3 className="font-bold">Weekly Quiz</h3>
               <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                Haftalık quizler student panel üzerinden aktif olacaktır.
+                Weekly quizzes will be available through the student panel.
               </p>
             </div>
           </div>
@@ -135,7 +140,7 @@ export default function HomePage() {
           className="border border-black/15 rounded-3xl p-8"
           style={{ backgroundColor: "var(--bg-card)" }}
         >
-          <h2 className="text-3xl font-bold mb-4">Günün Kelimeleri</h2>
+          <h2 className="text-3xl font-bold mb-4">Words of the Day</h2>
 
           <div className="grid md:grid-cols-3 gap-4">
             <div
@@ -178,9 +183,11 @@ export default function HomePage() {
           className="border border-black/15 rounded-3xl p-8"
           style={{ backgroundColor: "var(--bg-card)" }}
         >
-          <h2 className="text-3xl font-bold mb-4">Günün Metni</h2>
+          <h2 className="text-3xl font-bold mb-4">Daily Reading</h2>
           <p className="mb-6" style={{ color: "var(--text-soft)" }}>
-            Seviyene uygun kısa İngilizce metinleri buradan açabilirsin.
+            Open reading pages prepared for each level. Later, you can also add
+            multiple-choice questions, true-false activities, and sequencing tasks
+            under these readings.
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -192,14 +199,19 @@ export default function HomePage() {
               >
                 <p className="text-xl font-bold">{level}</p>
                 <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                  Bu seviye için günlük okuma metni
+                  Open the reading page created for this level.
                 </p>
-                <button
-                  className="mt-4 rounded-full px-4 py-2 text-sm font-bold transition border border-black"
-                  style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
+
+                <Link
+                  href={`/reading/${level.toLowerCase()}`}
+                  className="mt-4 inline-block rounded-full px-4 py-2 text-sm font-bold border border-black transition"
+                  style={{
+                    backgroundColor: "var(--bg-button)",
+                    color: "var(--text-main)",
+                  }}
                 >
-                  Metni Aç
-                </button>
+                  Open Reading
+                </Link>
               </div>
             ))}
           </div>
@@ -210,9 +222,10 @@ export default function HomePage() {
           className="border border-black/15 rounded-3xl p-8"
           style={{ backgroundColor: "var(--bg-card)" }}
         >
-          <h2 className="text-3xl font-bold mb-4">Speaking Club & Sınıflar</h2>
+          <h2 className="text-3xl font-bold mb-4">Speaking Club & Classes</h2>
           <p className="mb-6" style={{ color: "var(--text-soft)" }}>
-            Buraya speaking club günleri, sınıf bilgileri ve etkinlik kartları ekleyebilirsin.
+            You can add speaking club days, class details, and weekly activity cards
+            here.
           </p>
 
           <div className="grid md:grid-cols-3 gap-4">
@@ -222,10 +235,10 @@ export default function HomePage() {
             >
               <h3 className="font-bold text-lg">Speaking Club</h3>
               <p className="text-sm mt-3" style={{ color: "var(--text-soft)" }}>
-                Cuma - 19:30
+                Friday - 19:30
               </p>
               <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                B1 / B2 öğrencileri
+                For B1 / B2 students
               </p>
             </div>
 
@@ -235,7 +248,7 @@ export default function HomePage() {
             >
               <h3 className="font-bold text-lg">California Class</h3>
               <p className="text-sm mt-3" style={{ color: "var(--text-soft)" }}>
-                B2 sınıfı için özel worksheet ve quiz içerikleri
+                Special worksheets and quiz content for the B2 class
               </p>
             </div>
 
@@ -245,7 +258,7 @@ export default function HomePage() {
             >
               <h3 className="font-bold text-lg">Weekly Event</h3>
               <p className="text-sm mt-3" style={{ color: "var(--text-soft)" }}>
-                Her hafta yeni okuma ve kelime çalışmaları
+                New reading and vocabulary activities every week
               </p>
             </div>
           </div>

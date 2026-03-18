@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 
 type LeaderboardRow = {
@@ -32,12 +31,18 @@ function LeaderboardSection({
   currentStudentId: string;
 }) {
   return (
-    <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+    <div
+      className="border border-black rounded-2xl p-6"
+      style={{ backgroundColor: "var(--bg-card)" }}
+    >
       <h2 className="text-2xl font-bold mb-2">{title}</h2>
       <p className="text-sm opacity-90 mb-6 break-words">{subtitle}</p>
 
       {rows.length === 0 ? (
-        <div className="border border-dashed border-black rounded-lg p-8 text-center bg-yellow-50">
+        <div
+          className="border border-dashed border-black rounded-lg p-8 text-center"
+          style={{ backgroundColor: "var(--bg-soft)" }}
+        >
           Bu bölümde henüz veri yok.
         </div>
       ) : (
@@ -48,14 +53,16 @@ function LeaderboardSection({
             return (
               <div
                 key={`${title}-${row.student_id}`}
-                className={[
-                  "border border-black rounded-xl p-4",
-                  "flex flex-col gap-3 md:flex-row md:items-center md:justify-between",
-                  isMe ? "bg-yellow-300" : "bg-yellow-50",
-                ].join(" ")}
+                className="border border-black rounded-xl p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                style={{
+                  backgroundColor: isMe ? "var(--bg-button)" : "var(--bg-soft)",
+                }}
               >
                 <div className="flex items-start gap-4 min-w-0">
-                  <div className="w-10 h-10 shrink-0 rounded-full border border-black bg-yellow-200 flex items-center justify-center font-extrabold">
+                  <div
+                    className="w-10 h-10 shrink-0 rounded-full border border-black flex items-center justify-center font-extrabold"
+                    style={{ backgroundColor: "var(--bg-card)" }}
+                  >
                     {index + 1}
                   </div>
 
@@ -148,11 +155,15 @@ export default function LeaderboardPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
-      
-
+    <div
+      className="min-h-screen w-full overflow-x-hidden text-black"
+      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+    >
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+        <div
+          className="border border-black rounded-2xl p-6"
+          style={{ backgroundColor: "var(--bg-card)" }}
+        >
           <h1 className="text-3xl font-bold mb-2">Leaderboard</h1>
           <p className="text-sm opacity-90 break-words">
             Kendi sınıfını, seviyeni ve tüm kurs sıralamasını buradan takip et.
@@ -167,7 +178,10 @@ export default function LeaderboardPage() {
         ) : null}
 
         {loading ? (
-          <div className="bg-yellow-100 border border-black rounded-2xl p-8 text-center">
+          <div
+            className="border border-black rounded-2xl p-8 text-center"
+            style={{ backgroundColor: "var(--bg-card)" }}
+          >
             Loading leaderboard...
           </div>
         ) : (

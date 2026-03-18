@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
@@ -12,11 +11,50 @@ type ProgressRow = {
   created_at?: string | null;
 };
 
+type QuizMeta = {
+  id: number;
+  title: string;
+  unit: string | null;
+};
+
 export default function ProgressPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ProgressRow[]>([]);
+  const [quizMap, setQuizMap] = useState<Record<number, QuizMeta>>({});
   const [error, setError] = useState("");
+
+  const loadQuizMeta = async (rows: ProgressRow[]) => {
+    const quizIds = [...new Set(rows.map((r) => Number(r.quiz_id)).filter(Boolean))];
+
+    if (quizIds.length === 0) {
+      setQuizMap({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("quizzes")
+      .select("id, title, unit")
+      .in("id", quizIds);
+
+    if (error || !Array.isArray(data)) {
+      setQuizMap({});
+      return;
+    }
+
+    const map: Record<number, QuizMeta> = {};
+    for (const item of data as QuizMeta[]) {
+      map[item.id] = item;
+    }
+    setQuizMap(map);
+  };
+
+  const getQuizLabel = (quizId: number) => {
+    const quiz = quizMap[quizId];
+    if (!quiz) return "Quiz";
+    if (quiz.unit && quiz.title) return `${quiz.unit} • ${quiz.title}`;
+    return quiz.title || quiz.unit || "Quiz";
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -38,6 +76,7 @@ export default function ProgressPage() {
         .from("leaderboard")
         .select("student_id, quiz_id, score, created_at")
         .eq("student_id", session.user.id)
+        .order("created_at", { ascending: false })
         .limit(50);
 
       if (!mounted) return;
@@ -45,11 +84,14 @@ export default function ProgressPage() {
       if (error) {
         setError(error.message);
         setItems([]);
+        setQuizMap({});
         setLoading(false);
         return;
       }
 
-      setItems(Array.isArray(data) ? (data as ProgressRow[]) : []);
+      const rows = Array.isArray(data) ? (data as ProgressRow[]) : [];
+      setItems(rows);
+      await loadQuizMeta(rows);
       setLoading(false);
     };
 
@@ -77,10 +119,15 @@ export default function ProgressPage() {
   }, [items]);
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-yellow-300 text-black">
-      
+    <div
+      className="min-h-screen w-full overflow-x-hidden text-black"
+      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+    >
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+        <div
+          className="border border-black rounded-2xl p-6"
+          style={{ backgroundColor: "var(--bg-card)" }}
+        >
           <h2 className="text-2xl font-bold mb-2">Progress</h2>
           <p className="mb-6">Your learning progress summary.</p>
 
@@ -98,17 +145,26 @@ export default function ProgressPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-yellow-50 border border-black rounded-xl p-4">
+                <div
+                  className="border border-black rounded-xl p-4"
+                  style={{ backgroundColor: "var(--bg-soft)" }}
+                >
                   <p className="text-sm opacity-80">Average Score</p>
                   <p className="text-3xl font-bold">{avg}%</p>
                 </div>
 
-                <div className="bg-yellow-50 border border-black rounded-xl p-4">
+                <div
+                  className="border border-black rounded-xl p-4"
+                  style={{ backgroundColor: "var(--bg-soft)" }}
+                >
                   <p className="text-sm opacity-80">Highest Score</p>
                   <p className="text-3xl font-bold">{highest}%</p>
                 </div>
 
-                <div className="bg-yellow-50 border border-black rounded-xl p-4">
+                <div
+                  className="border border-black rounded-xl p-4"
+                  style={{ backgroundColor: "var(--bg-soft)" }}
+                >
                   <p className="text-sm opacity-80">Lowest Score</p>
                   <p className="text-3xl font-bold">{lowest}%</p>
                 </div>
@@ -123,17 +179,21 @@ export default function ProgressPage() {
                   items.map((item) => (
                     <div
                       key={`${item.student_id}-${item.quiz_id}`}
-                      className="border border-black rounded-lg bg-yellow-50 p-4 flex items-center justify-between gap-3"
+                      className="border border-black rounded-lg p-4 flex items-center justify-between gap-3"
+                      style={{ backgroundColor: "var(--bg-soft)" }}
                     >
                       <div className="min-w-0">
-                        <p className="font-semibold">Quiz #{item.quiz_id}</p>
+                        <p className="font-semibold break-words">{getQuizLabel(item.quiz_id)}</p>
                         <p className="text-sm">Score: {item.score}%</p>
                         <p className="text-xs break-words">
                           {item.created_at ? new Date(item.created_at).toLocaleString() : "No date"}
                         </p>
                       </div>
 
-                      <span className="text-xs px-2 py-1 rounded-md border border-black bg-yellow-200 shrink-0">
+                      <span
+                        className="text-xs px-2 py-1 rounded-md border border-black shrink-0"
+                        style={{ backgroundColor: "var(--bg-button)" }}
+                      >
                         Progress
                       </span>
                     </div>

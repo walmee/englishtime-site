@@ -25,27 +25,51 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error } = await supabase
+    // 1) Önce aynı öğrenci aynı quizi daha önce çözmüş mü kontrol et
+    const { data: existing, error: existingError } = await supabase
       .from("leaderboard")
-      .upsert(
-        {
-          student_id,
-          quiz_id,
-          score,
-        },
-        { onConflict: "student_id,quiz_id" }
-      );
+      .select("student_id, quiz_id, score")
+      .eq("student_id", student_id)
+      .eq("quiz_id", quiz_id)
+      .maybeSingle();
 
-    if (error) {
+    if (existingError) {
       return NextResponse.json(
-        { error: error.message },
+        { error: existingError.message },
+        { status: 500 }
+      );
+    }
+
+    // 2) Kayıt varsa değiştirme
+    if (existing) {
+      return NextResponse.json({
+        ok: true,
+        message: "This quiz was already submitted before. First score is protected.",
+        locked: true,
+        first_score: existing.score,
+      });
+    }
+
+    // 3) İlk kez çözülüyorsa kaydet
+    const { error: insertError } = await supabase
+      .from("leaderboard")
+      .insert({
+        student_id,
+        quiz_id,
+        score,
+      });
+
+    if (insertError) {
+      return NextResponse.json(
+        { error: insertError.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       ok: true,
-      message: "Leaderboard kaydı güncellendi.",
+      message: "First score saved to leaderboard.",
+      locked: false,
     });
   } catch (error: any) {
     return NextResponse.json(
