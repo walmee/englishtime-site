@@ -200,6 +200,11 @@ export default function TakeTestPage() {
       setFinished(true);
 
       const score = chosenPoints;
+      const submittedAnswers = questions.map((q) => ({
+        question_id: q.id,
+        selected_option: answers[q.id] ?? null,
+        correct_option: q.correct_option,
+      }));
 
       const res = await fetch("/api/leaderboard", {
         method: "POST",
@@ -210,17 +215,18 @@ export default function TakeTestPage() {
           student_id: studentId,
           quiz_id: Number(quizId),
           score: Number(score),
+          answers: submittedAnswers,
         }),
       });
 
       const json = await res.json();
 
       if (!res.ok) {
-        setMsg(json?.error || "Leaderboard kaydı başarısız.");
+        setMsg(json?.error || "Leaderboard save failed.");
         return;
       }
 
-      setMsg(json?.message || "İşlem tamamlandı.");
+      setMsg(json?.message || "Completed successfully.");
     } catch (e: any) {
       setMsg(e?.message || "Unexpected error");
     } finally {
@@ -306,27 +312,6 @@ export default function TakeTestPage() {
                 </p>
               ) : null}
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              {!finished ? (
-                <button
-                  onClick={submitTest}
-                  disabled={submitting || loadingQuestions || questions.length === 0}
-                  className="px-4 py-2 rounded-lg border border-black font-bold transition disabled:opacity-60"
-                  style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
-                >
-                  {submitting ? "Submitting..." : "Submit Test"}
-                </button>
-              ) : (
-                <button
-                  onClick={resetForRetry}
-                  className="px-4 py-2 rounded-lg border border-black transition font-bold"
-                  style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
-                >
-                  Try Again
-                </button>
-              )}
-            </div>
           </div>
 
           {loadingQuestions ? (
@@ -338,63 +323,86 @@ export default function TakeTestPage() {
               No questions found for this quiz.
             </div>
           ) : (
-            <div className="space-y-4">
-              {questions.map((q, idx) => {
-                const picked = answers[q.id];
-                const isCorrect = picked && picked === q.correct_option;
+            <>
+              <div className="space-y-4">
+                {questions.map((q, idx) => {
+                  const picked = answers[q.id];
+                  const isCorrect = picked && picked === q.correct_option;
 
-                return (
-                  <div
-                    key={q.id}
-                    className="border border-black rounded-xl p-4"
-                    style={{ backgroundColor: "var(--bg-soft)" }}
-                  >
-                    <div className="font-bold">
-                      Q{idx + 1}. ({q.points} pts)
-                    </div>
-                    <div className="mt-1 break-words">{q.question_text}</div>
-
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {(
-                        [
-                          ["A", q.option_a],
-                          ["B", q.option_b],
-                          ["C", q.option_c],
-                          ["D", q.option_d],
-                        ] as const
-                      ).map(([opt, text]) => {
-                        const selected = picked === opt;
-
-                        return (
-                          <button
-                            key={opt}
-                            onClick={() => pick(q.id, opt)}
-                            disabled={finished}
-                            className={[
-                              "text-left px-3 py-3 rounded-lg border border-black transition break-words",
-                              finished ? "opacity-80 cursor-default" : "",
-                            ].join(" ")}
-                            style={{
-                              backgroundColor: selected ? "var(--bg-button)" : "var(--bg-card)",
-                              color: "var(--text-main)",
-                            }}
-                          >
-                            <b>{opt})</b> {text}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {finished ? (
-                      <div className="mt-3 text-sm font-bold break-words">
-                        Your answer: {picked ?? "-"} • Correct: {q.correct_option} •{" "}
-                        {picked ? (isCorrect ? "✅ Correct" : "❌ Wrong") : "❌ Not answered"}
+                  return (
+                    <div
+                      key={q.id}
+                      className="border border-black rounded-xl p-4"
+                      style={{ backgroundColor: "var(--bg-soft)" }}
+                    >
+                      <div className="font-bold">
+                        Q{idx + 1}. ({q.points} pts)
                       </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+                      <div className="mt-1 break-words">{q.question_text}</div>
+
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {(
+                          [
+                            ["A", q.option_a],
+                            ["B", q.option_b],
+                            ["C", q.option_c],
+                            ["D", q.option_d],
+                          ] as const
+                        ).map(([opt, text]) => {
+                          const selected = picked === opt;
+
+                          return (
+                            <button
+                              key={opt}
+                              onClick={() => pick(q.id, opt)}
+                              disabled={finished}
+                              className={[
+                                "text-left px-3 py-3 rounded-lg border border-black transition break-words",
+                                finished ? "opacity-80 cursor-default" : "",
+                              ].join(" ")}
+                              style={{
+                                backgroundColor: selected ? "var(--bg-button)" : "var(--bg-card)",
+                                color: "var(--text-main)",
+                              }}
+                            >
+                              <b>{opt})</b> {text}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {finished ? (
+                        <div className="mt-3 text-sm font-bold break-words">
+                          Your answer: {picked ?? "-"} • Correct: {q.correct_option} •{" "}
+                          {picked ? (isCorrect ? "✅ Correct" : "❌ Wrong") : "❌ Not answered"}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex justify-center">
+                {!finished ? (
+                  <button
+                    onClick={submitTest}
+                    disabled={submitting || loadingQuestions || questions.length === 0}
+                    className="px-6 py-3 rounded-xl border border-black font-bold transition disabled:opacity-60"
+                    style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
+                  >
+                    {submitting ? "Submitting..." : "Submit Test"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={resetForRetry}
+                    className="px-6 py-3 rounded-xl border border-black transition font-bold"
+                    style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
+                  >
+                    Try Again
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
 

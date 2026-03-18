@@ -153,9 +153,7 @@ export default function ReadingDetailPage() {
               >
                 <h3 className="text-lg font-bold mb-2">Questions Section</h3>
                 <p className="text-sm" style={{ color: "var(--text-soft)" }}>
-                  This area is ready for your next step. Later, you can add:
-                  multiple choice questions, true/false tasks, sequencing
-                  activities, and other reading exercises under this text.
+                  In the Future
                 </p>
               </div>
             </div>

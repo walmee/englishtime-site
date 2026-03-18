@@ -43,7 +43,7 @@ function LeaderboardSection({
           className="border border-dashed border-black rounded-lg p-8 text-center"
           style={{ backgroundColor: "var(--bg-soft)" }}
         >
-          Bu bölümde henüz veri yok.
+          No data available in this section yet.
         </div>
       ) : (
         <div className="space-y-4">
@@ -113,7 +113,7 @@ export default function LeaderboardPage() {
         } = await supabase.auth.getUser();
 
         if (!user?.id) {
-          setMsg("Önce giriş yapmalısın.");
+          setMsg("You must log in first.");
           setLoading(false);
           return;
         }
@@ -128,7 +128,7 @@ export default function LeaderboardPage() {
         const json = text ? JSON.parse(text) : {};
 
         if (!res.ok) {
-          setMsg(json?.error || "Leaderboard yüklenemedi.");
+          setMsg(json?.error || "Failed to load leaderboard.");
         } else {
           setData({
             classLeaderboard: Array.isArray(json?.classLeaderboard)
@@ -145,7 +145,7 @@ export default function LeaderboardPage() {
           });
         }
       } catch (e: any) {
-        setMsg(e?.message || "Beklenmeyen bir hata oluştu.");
+        setMsg(e?.message || "An unexpected error occurred.");
       } finally {
         setLoading(false);
       }
@@ -166,7 +166,7 @@ export default function LeaderboardPage() {
         >
           <h1 className="text-3xl font-bold mb-2">Leaderboard</h1>
           <p className="text-sm opacity-90 break-words">
-            Kendi sınıfını, seviyeni ve tüm kurs sıralamasını buradan takip et.
+            Track your class, level, and overall course rankings here.
           </p>
         </div>
 
@@ -190,8 +190,8 @@ export default function LeaderboardPage() {
               title="My Class Leaderboard"
               subtitle={
                 data.currentClassName
-                  ? `${data.currentClassName} sınıfındaki öğrencilerin sıralaması`
-                  : "Sınıf bilgisi bulunamadı"
+                  ? `Ranking of students in ${data.currentClassName} class`
+                  : "Class information not found"
               }
               rows={data.classLeaderboard}
               currentStudentId={currentStudentId}
@@ -201,8 +201,8 @@ export default function LeaderboardPage() {
               title="My Level Leaderboard"
               subtitle={
                 data.currentLevel
-                  ? `${data.currentLevel} seviyesindeki tüm öğrencilerin sıralaması`
-                  : "Level bilgisi bulunamadı"
+                  ? `Ranking of all students at ${data.currentLevel} level`
+                  : "Level information not found"
               }
               rows={data.levelLeaderboard}
               currentStudentId={currentStudentId}
@@ -210,7 +210,7 @@ export default function LeaderboardPage() {
 
             <LeaderboardSection
               title="Overall Leaderboard"
-              subtitle="Tüm kurstaki öğrencilerin genel sıralaması"
+              subtitle="Overall ranking of all students in the course"
               rows={data.overallLeaderboard}
               currentStudentId={currentStudentId}
             />
