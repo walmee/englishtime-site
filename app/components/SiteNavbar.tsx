@@ -189,6 +189,7 @@ export default function SiteNavbar() {
       label: "Admin",
       children: [
         { key: "admin-home", label: "Overview", href: "/admin" },
+        { key: "admin-teacher-classes", label: "Teacher Classes", href: "/admin/teacher-classes" },
         { key: "admin-quizzes", label: "Quizzes", href: "/admin/quizzes" },
         { key: "admin-questions", label: "Questions", href: "/admin/questions" },
         { key: "admin-classes", label: "Classes", href: "/admin/classes" },

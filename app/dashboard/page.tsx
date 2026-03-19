@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  const [checkingRole, setCheckingRole] = useState(true);
   const [userId, setUserId] = useState('');
   const [profileName, setProfileName] = useState('');
   const [profileLevel, setProfileLevel] = useState('');
@@ -42,20 +43,32 @@ export default function DashboardPage() {
       const user = session?.user;
 
       if (!user) {
-        router.push('/login');
+        router.replace('/login');
         return;
       }
 
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('username, level')
+        .select('username, level, role')
         .eq('id', user.id)
         .single();
 
       if (!mounted) return;
 
       if (error || !profile) {
-        router.push('/login');
+        router.replace('/login');
+        return;
+      }
+
+      const role = String(profile.role || 'student').toLowerCase();
+
+      if (role === 'teacher') {
+        router.replace('/teacher');
+        return;
+      }
+
+      if (role === 'admin') {
+        router.replace('/admin');
         return;
       }
 
@@ -64,6 +77,7 @@ export default function DashboardPage() {
       setUserId(user.id);
       setProfileName(username);
       setProfileLevel(profile.level || 'A1');
+      setCheckingRole(false);
     };
 
     loadUser();
@@ -185,6 +199,22 @@ export default function DashboardPage() {
     if (quiz.unit && quiz.title) return `${quiz.unit} • ${quiz.title}`;
     return quiz.title || quiz.unit || 'Quiz';
   };
+
+  if (checkingRole) {
+    return (
+      <div
+        className="min-h-screen w-full overflow-x-hidden text-black flex items-center justify-center"
+        style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-main)' }}
+      >
+        <div
+          className="border border-black rounded-xl p-6 font-bold"
+          style={{ backgroundColor: 'var(--bg-card)' }}
+        >
+          Loading dashboard...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
