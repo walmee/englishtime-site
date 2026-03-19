@@ -165,6 +165,7 @@ export default function AdminQuizzesPage() {
                             <option value="">Select</option>
                             <option value="Arkansas">Arkansas</option>
                             <option value="London">London</option>
+                            <option value="California">California</option>
                             <option value="all">ALL</option>
                         </select>
                     </div>

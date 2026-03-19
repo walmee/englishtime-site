@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 
-type Role = "guest" | "student" | "admin";
+type Role = "guest" | "student" | "admin" | "teacher";
 
 type MenuItem = {
   key: string;
@@ -55,7 +55,16 @@ export default function SiteNavbar() {
         return;
       }
 
-      setRole(profile.role === "admin" ? "admin" : "student");
+      const dbRole = String(profile.role || "student").toLowerCase();
+
+      if (dbRole === "admin") {
+        setRole("admin");
+      } else if (dbRole === "teacher") {
+        setRole("teacher");
+      } else {
+        setRole("student");
+      }
+
       setUsername(profile.username || session.user.email || "");
       setTheme(profile.theme || "yellow");
     };
@@ -155,6 +164,24 @@ export default function SiteNavbar() {
     },
   ];
 
+  const teacherItems: MenuItem[] = [
+    ...publicItems,
+    {
+      key: "teacher",
+      label: "Teacher",
+      children: [
+        { key: "teacher-home", label: "Overview", href: "/teacher" },
+        { key: "teacher-quizzes", label: "Quizzes", href: "/teacher/quizzes" },
+        { key: "teacher-questions", label: "Questions", href: "/teacher/questions" },
+        { key: "teacher-worksheets", label: "Worksheets", href: "/teacher/worksheets" },
+        { key: "teacher-reading-texts", label: "Reading Texts", href: "/teacher/reading-texts" },
+        { key: "teacher-leaderboard", label: "Leaderboard", href: "/teacher/leaderboard" },
+        { key: "teacher-quiz-insights", label: "Quiz Insights", href: "/teacher/quiz-insights" },
+        { key: "teacher-tools", label: "Tools", href: "/teacher/tools" },
+      ],
+    },
+  ];
+
   const adminItems: MenuItem[] = [
     ...publicItems,
     {
@@ -188,7 +215,13 @@ export default function SiteNavbar() {
   ];
 
   const navItems =
-    role === "guest" ? publicItems : role === "admin" ? adminItems : studentItems;
+    role === "guest"
+      ? publicItems
+      : role === "admin"
+      ? adminItems
+      : role === "teacher"
+      ? teacherItems
+      : studentItems;
 
   const mobileAccountItems = useMemo<MenuItem[]>(() => {
     if (role === "guest") {
@@ -198,6 +231,14 @@ export default function SiteNavbar() {
     if (role === "admin") {
       return [
         { key: "admin-panel", label: "Admin Panel", href: "/admin" },
+        { key: "change-password", label: "Change Password", href: "/change-password" },
+        { key: "logout", label: loggingOut ? "Logging out..." : "Logout", action: logout },
+      ];
+    }
+
+    if (role === "teacher") {
+      return [
+        { key: "teacher-panel", label: "Teacher Panel", href: "/teacher" },
         { key: "change-password", label: "Change Password", href: "/change-password" },
         { key: "logout", label: loggingOut ? "Logging out..." : "Logout", action: logout },
       ];
@@ -268,13 +309,30 @@ export default function SiteNavbar() {
                           {username}
                         </div>
                         <div className="text-xs text-[#6b6248]">
-                          {role === "admin" ? "Admin" : "Student"}
+                          {role === "admin"
+                            ? "Admin"
+                            : role === "teacher"
+                            ? "Teacher"
+                            : "Student"}
                         </div>
                       </div>
                     </button>
 
                     {openAccount ? (
                       <div className="absolute right-0 top-full min-w-[220px] overflow-hidden rounded-2xl border border-[#d7cfbe] bg-[#fffdf7] shadow-xl">
+                        {(role === "admin" || role === "teacher") && (
+                          <Link
+                            href={role === "admin" ? "/admin" : "/teacher"}
+                            className={`block px-5 py-4 text-sm text-[#222222] transition hover:bg-[#f5e7b8] ${
+                              pathname === "/admin" || pathname === "/teacher"
+                                ? "bg-[#e0b33a] font-bold text-black"
+                                : ""
+                            }`}
+                          >
+                            {role === "admin" ? "Admin Panel" : "Teacher Panel"}
+                          </Link>
+                        )}
+
                         <Link
                           href="/dashboard"
                           className={`block px-5 py-4 text-sm text-[#222222] transition hover:bg-[#f5e7b8] ${
@@ -418,7 +476,11 @@ export default function SiteNavbar() {
                             {username}
                           </div>
                           <div className="text-xs text-[#6b6248]">
-                            {role === "admin" ? "Admin" : "Student"}
+                            {role === "admin"
+                              ? "Admin"
+                              : role === "teacher"
+                              ? "Teacher"
+                              : "Student"}
                           </div>
                         </div>
                       </div>

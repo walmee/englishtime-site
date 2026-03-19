@@ -103,7 +103,27 @@ export default function TakeTestPage() {
     }
 
     const level = profile.level ? String(profile.level).trim() : "all";
-    const className = profile.class_name ? String(profile.class_name).trim() : "all";
+
+    // Önce gerçek class bilgisini class_students tablosundan al
+    let className = profile.class_name ? String(profile.class_name).trim() : "all";
+
+    const { data: classStudent } = await supabase
+      .from("class_students")
+      .select("class_id")
+      .eq("student_id", studentId)
+      .maybeSingle();
+
+    if (classStudent?.class_id) {
+      const { data: classRow } = await supabase
+        .from("classes")
+        .select("class_name")
+        .eq("id", classStudent.class_id)
+        .maybeSingle();
+
+      if (classRow?.class_name) {
+        className = String(classRow.class_name).trim();
+      }
+    }
 
     const { data, error } = await supabase
       .from("quizzes")

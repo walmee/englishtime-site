@@ -1,0 +1,1 @@
+export { default } from "../../admin/reading-texts/page";
