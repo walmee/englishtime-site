@@ -49,13 +49,13 @@ export default function AdminLeaderboardPage() {
       const json = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        setMessage(json?.error || "Leaderboard verileri yüklenemedi.");
+        setMessage(json?.error || "Failed to load leaderboard data.");
         setData(null);
       } else {
         setData(json);
       }
     } catch (error: any) {
-      setMessage(error?.message || "Beklenmeyen bir hata oluştu.");
+      setMessage(error?.message || "An unexpected error occurred.");
       setData(null);
     } finally {
       setLoading(false);
@@ -64,7 +64,7 @@ export default function AdminLeaderboardPage() {
 
   const resetLeaderboard = async () => {
     const ok = window.confirm(
-      "Leaderboard tamamen sıfırlansın mı? Bu işlem geri alınamaz."
+      "Do you want to reset the leaderboard completely? This action cannot be undone."
     );
 
     if (!ok) return;
@@ -81,13 +81,13 @@ export default function AdminLeaderboardPage() {
       const json = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        setMessage(json?.error || "Leaderboard sıfırlanamadı.");
+        setMessage(json?.error || "Failed to reset the leaderboard.");
       } else {
-        setMessage(json?.message || "Leaderboard başarıyla sıfırlandı.");
+        setMessage(json?.message || "Leaderboard reset successfully.");
         await loadOverview();
       }
     } catch (error: any) {
-      setMessage(error?.message || "Beklenmeyen bir hata oluştu.");
+      setMessage(error?.message || "An unexpected error occurred.");
     } finally {
       setResetting(false);
     }
@@ -105,7 +105,7 @@ export default function AdminLeaderboardPage() {
             <div>
               <h1 className="text-3xl font-bold">Leaderboard Analytics</h1>
               <p className="text-sm mt-1">
-                Tüm kurs için sıralama ve analiz ekranı.
+                Ranking and analytics dashboard for the entire course.
               </p>
             </div>
 
@@ -114,7 +114,7 @@ export default function AdminLeaderboardPage() {
               disabled={resetting}
               className="px-4 py-3 rounded-lg border border-black bg-red-500 text-white font-bold hover:bg-red-600 transition disabled:opacity-60"
             >
-              {resetting ? "Sıfırlanıyor..." : "Leaderboard Sıfırla"}
+              {resetting ? "Resetting..." : "Reset Leaderboard"}
             </button>
           </div>
 
@@ -130,27 +130,27 @@ export default function AdminLeaderboardPage() {
             </div>
           ) : !data ? (
             <div className="border border-dashed border-black rounded-lg p-8 text-center">
-              Veri bulunamadı.
+              No data found.
             </div>
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-yellow-50 border border-black rounded-xl p-5">
-                  <div className="text-xs opacity-70">Toplam Test Kaydı</div>
+                  <div className="text-xs opacity-70">Total Test Records</div>
                   <div className="text-3xl font-extrabold mt-1">
                     {data.stats.totalTests}
                   </div>
                 </div>
 
                 <div className="bg-yellow-50 border border-black rounded-xl p-5">
-                  <div className="text-xs opacity-70">Skor Alan Öğrenci</div>
+                  <div className="text-xs opacity-70">Students with Scores</div>
                   <div className="text-3xl font-extrabold mt-1">
                     {data.stats.totalStudents}
                   </div>
                 </div>
 
                 <div className="bg-yellow-50 border border-black rounded-xl p-5">
-                  <div className="text-xs opacity-70">Ortalama Test Skoru</div>
+                  <div className="text-xs opacity-70">Average Test Score</div>
                   <div className="text-3xl font-extrabold mt-1">
                     {data.stats.averageScore}
                   </div>
@@ -162,7 +162,7 @@ export default function AdminLeaderboardPage() {
 
                 {data.topStudents.length === 0 ? (
                   <div className="border border-dashed border-black rounded-lg p-6 text-center">
-                    Henüz skor kaydı yok.
+                    No score records yet.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -170,10 +170,10 @@ export default function AdminLeaderboardPage() {
                       <thead>
                         <tr className="bg-yellow-200">
                           <th className="border border-black p-3 text-left">#</th>
-                          <th className="border border-black p-3 text-left">Öğrenci</th>
+                          <th className="border border-black p-3 text-left">Student</th>
                           <th className="border border-black p-3 text-left">Level</th>
-                          <th className="border border-black p-3 text-left">Quiz Sayısı</th>
-                          <th className="border border-black p-3 text-left">Toplam Puan</th>
+                          <th className="border border-black p-3 text-left">Quiz Count</th>
+                          <th className="border border-black p-3 text-left">Total Score</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -204,7 +204,7 @@ export default function AdminLeaderboardPage() {
 
                   {data.levelStats.length === 0 ? (
                     <div className="border border-dashed border-black rounded-lg p-6 text-center">
-                      Veri yok.
+                      No data available.
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -212,8 +212,8 @@ export default function AdminLeaderboardPage() {
                         <thead>
                           <tr className="bg-yellow-200">
                             <th className="border border-black p-3 text-left">Level</th>
-                            <th className="border border-black p-3 text-left">Öğrenci</th>
-                            <th className="border border-black p-3 text-left">Toplam Puan</th>
+                            <th className="border border-black p-3 text-left">Students</th>
+                            <th className="border border-black p-3 text-left">Total Score</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -241,16 +241,16 @@ export default function AdminLeaderboardPage() {
 
                   {data.classStats.length === 0 ? (
                     <div className="border border-dashed border-black rounded-lg p-6 text-center">
-                      Veri yok.
+                      No data available.
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse">
                         <thead>
                           <tr className="bg-yellow-200">
-                            <th className="border border-black p-3 text-left">Sınıf</th>
-                            <th className="border border-black p-3 text-left">Öğrenci</th>
-                            <th className="border border-black p-3 text-left">Toplam Puan</th>
+                            <th className="border border-black p-3 text-left">Class</th>
+                            <th className="border border-black p-3 text-left">Students</th>
+                            <th className="border border-black p-3 text-left">Total Score</th>
                           </tr>
                         </thead>
                         <tbody>
