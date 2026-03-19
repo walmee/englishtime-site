@@ -169,6 +169,7 @@ export default function SiteNavbar() {
         { key: "admin-worksheets", label: "Worksheets", href: "/admin/worksheets" },
         { key: "admin-reading-texts", label: "Reading Texts", href: "/admin/reading-texts" },
         { key: "admin-leaderboard", label: "Leaderboard", href: "/admin/leaderboard" },
+        { key: "admin-quiz-insights", label: "Quiz Insights", href: "/admin/quiz-insights" },
         { key: "admin-tools", label: "Tools", href: "/admin/tools" },
       ],
     },

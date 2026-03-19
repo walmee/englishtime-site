@@ -17,15 +17,21 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
+    const userId = String(body.userId || "").trim();
     const username = String(body.username || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password || "").trim();
     const level = String(body.level || "").trim();
     const class_id = Number(body.class_id);
 
-    if (!username || !email || !password) {
+    if (!userId) {
       return NextResponse.json(
-        { error: "Username, email, and password are required." },
+        { error: "User id is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!username) {
+      return NextResponse.json(
+        { error: "Username is required." },
         { status: 400 }
       );
     }
@@ -61,68 +67,69 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: createdUser, error: createUserError } =
-      await adminSupabase.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      });
-
-    if (createUserError) {
-      return NextResponse.json(
-        { error: createUserError.message },
-        { status: 500 }
-      );
-    }
-
-    const userId = createdUser.user?.id;
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User was created but id could not be read." },
-        { status: 500 }
-      );
-    }
-
-    const { error: profileError } = await adminSupabase.from("profiles").insert({
-      id: userId,
-      username,
-      role: "student",
-      level,
-      class_name: classRow.class_name,
-      is_active: true,
-    });
+    const { error: profileError } = await adminSupabase
+      .from("profiles")
+      .update({
+        username,
+        level,
+        class_name: classRow.class_name,
+      })
+      .eq("id", userId);
 
     if (profileError) {
-      await adminSupabase.auth.admin.deleteUser(userId);
-
       return NextResponse.json(
         { error: profileError.message },
         { status: 500 }
       );
     }
 
-    const { error: classStudentError } = await adminSupabase
+    const { data: existingClassRow, error: existingClassError } = await adminSupabase
       .from("class_students")
-      .insert({
-        student_id: userId,
-        class_id: class_id,
-      });
+      .select("student_id, class_id")
+      .eq("student_id", userId)
+      .maybeSingle();
 
-    if (classStudentError) {
-      await adminSupabase.from("profiles").delete().eq("id", userId);
-      await adminSupabase.auth.admin.deleteUser(userId);
-
+    if (existingClassError) {
       return NextResponse.json(
-        { error: classStudentError.message },
+        { error: existingClassError.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(
-      { ok: true, message: "Student created successfully." },
-      { status: 200 }
-    );
+    if (existingClassRow) {
+      const { error: updateClassError } = await adminSupabase
+        .from("class_students")
+        .update({
+          class_id,
+        })
+        .eq("student_id", userId);
+
+      if (updateClassError) {
+        return NextResponse.json(
+          { error: updateClassError.message },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error: insertClassError } = await adminSupabase
+        .from("class_students")
+        .insert({
+          student_id: userId,
+          class_id,
+        });
+
+      if (insertClassError) {
+        return NextResponse.json(
+          { error: insertClassError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: "Student information updated successfully.",
+    });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Unexpected error." },

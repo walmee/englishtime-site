@@ -23,7 +23,9 @@ type ClassStudentRow = {
 
 export default function AdminStudentsPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
   const [classMap, setClassMap] = useState<Record<string, string>>({});
+  const [classIdMap, setClassIdMap] = useState<Record<string, number | null>>({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -31,11 +33,13 @@ export default function AdminStudentsPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [level, setLevel] = useState("A1");
+  const [classId, setClassId] = useState("");
   const [creating, setCreating] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editUsername, setEditUsername] = useState("");
   const [editLevel, setEditLevel] = useState("A1");
+  const [editClassId, setEditClassId] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
   const loadData = async () => {
@@ -55,26 +59,46 @@ export default function AdminStudentsPage() {
       return;
     }
 
-    const { data: classesData } = await supabase
+    const { data: classesData, error: classesError } = await supabase
       .from("classes")
-      .select("id, class_name");
+      .select("id, class_name")
+      .order("class_name", { ascending: true });
 
-    const { data: classStudentsData } = await supabase
+    if (classesError) {
+      setMessage(classesError.message);
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: classStudentsData, error: classStudentsError } = await supabase
       .from("class_students")
       .select("class_id, student_id");
 
+    if (classStudentsError) {
+      setMessage(classStudentsError.message);
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
+
     const classNameById: Record<number, string> = {};
-    ((classesData || []) as ClassRow[]).forEach((c) => {
+    (classesData || []).forEach((c: ClassRow) => {
       classNameById[c.id] = c.class_name;
     });
 
     const studentClassMap: Record<string, string> = {};
-    ((classStudentsData || []) as ClassStudentRow[]).forEach((row) => {
+    const studentClassIdMap: Record<string, number | null> = {};
+
+    (classStudentsData || []).forEach((row: ClassStudentRow) => {
       studentClassMap[row.student_id] = classNameById[row.class_id] || "-";
+      studentClassIdMap[row.student_id] = row.class_id;
     });
 
     setStudents((studentsData || []) as StudentRow[]);
+    setClasses((classesData || []) as ClassRow[]);
     setClassMap(studentClassMap);
+    setClassIdMap(studentClassIdMap);
     setLoading(false);
   };
 
@@ -90,7 +114,17 @@ export default function AdminStudentsPage() {
     const safePassword = password.trim();
 
     if (!safeUsername || !safeEmail || !safePassword) {
-      setMessage("Username, email ve password zorunlu.");
+      setMessage("Username, email, and password are required.");
+      return;
+    }
+
+    if (!level.trim()) {
+      setMessage("Level is required.");
+      return;
+    }
+
+    if (!classId) {
+      setMessage("Class is required.");
       return;
     }
 
@@ -107,6 +141,7 @@ export default function AdminStudentsPage() {
           email: safeEmail,
           password: safePassword,
           level,
+          class_id: Number(classId),
         }),
       });
 
@@ -114,20 +149,21 @@ export default function AdminStudentsPage() {
       const json = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        setMessage(json?.error || "Öğrenci oluşturulamadı.");
+        setMessage(json?.error || "Student could not be created.");
         setCreating(false);
         return;
       }
 
-      setMessage("Yeni öğrenci oluşturuldu.");
+      setMessage("New student created successfully.");
       setUsername("");
       setEmail("");
       setPassword("");
       setLevel("A1");
+      setClassId("");
       setCreating(false);
       loadData();
     } catch (e: any) {
-      setMessage(e?.message || "Beklenmeyen hata oluştu.");
+      setMessage(e?.message || "Unexpected error occurred.");
       setCreating(false);
     }
   };
@@ -136,6 +172,7 @@ export default function AdminStudentsPage() {
     setEditingId(student.id);
     setEditUsername(student.username || "");
     setEditLevel(student.level || "A1");
+    setEditClassId(classIdMap[student.id] ? String(classIdMap[student.id]) : "");
     setMessage("");
   };
 
@@ -143,6 +180,7 @@ export default function AdminStudentsPage() {
     setEditingId(null);
     setEditUsername("");
     setEditLevel("A1");
+    setEditClassId("");
   };
 
   const saveEdit = async (studentId: string) => {
@@ -150,13 +188,23 @@ export default function AdminStudentsPage() {
 
     const safeUsername = editUsername.trim();
     if (!safeUsername) {
-      setMessage("Username boş olamaz.");
+      setMessage("Username cannot be empty.");
+      return;
+    }
+
+    if (!editLevel.trim()) {
+      setMessage("Level is required.");
+      return;
+    }
+
+    if (!editClassId) {
+      setMessage("Class is required.");
       return;
     }
 
     setSavingEdit(true);
 
-    const { error } = await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
       .update({
         username: safeUsername,
@@ -164,13 +212,55 @@ export default function AdminStudentsPage() {
       })
       .eq("id", studentId);
 
-    if (error) {
-      setMessage(error.message);
+    if (profileError) {
+      setMessage(profileError.message);
       setSavingEdit(false);
       return;
     }
 
-    setMessage("Öğrenci bilgileri güncellendi.");
+    const numericClassId = Number(editClassId);
+
+    const { data: existingClassRow, error: existingClassError } = await supabase
+      .from("class_students")
+      .select("student_id, class_id")
+      .eq("student_id", studentId)
+      .maybeSingle();
+
+    if (existingClassError) {
+      setMessage(existingClassError.message);
+      setSavingEdit(false);
+      return;
+    }
+
+    if (existingClassRow) {
+      const { error: updateClassError } = await supabase
+        .from("class_students")
+        .update({
+          class_id: numericClassId,
+        })
+        .eq("student_id", studentId);
+
+      if (updateClassError) {
+        setMessage(updateClassError.message);
+        setSavingEdit(false);
+        return;
+      }
+    } else {
+      const { error: insertClassError } = await supabase
+        .from("class_students")
+        .insert({
+          student_id: studentId,
+          class_id: numericClassId,
+        });
+
+      if (insertClassError) {
+        setMessage(insertClassError.message);
+        setSavingEdit(false);
+        return;
+      }
+    }
+
+    setMessage("Student information updated successfully.");
     setSavingEdit(false);
     cancelEdit();
     loadData();
@@ -195,20 +285,20 @@ export default function AdminStudentsPage() {
       const json = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        setMessage(json?.error || "Durum güncellenemedi.");
+        setMessage(json?.error || "Status could not be updated.");
         return;
       }
 
-      setMessage(json?.message || "Durum güncellendi.");
+      setMessage(json?.message || "Status updated.");
       loadData();
     } catch (e: any) {
-      setMessage(e?.message || "Beklenmeyen hata oluştu.");
+      setMessage(e?.message || "Unexpected error occurred.");
     }
   };
 
   const deleteStudent = async (student: StudentRow) => {
     const ok = window.confirm(
-      `${student.username || "Bu öğrenci"} silinsin mi? Bu işlem geri alınamaz.`
+      `${student.username || "This student"} will be deleted. This action cannot be undone.`
     );
     if (!ok) return;
 
@@ -229,14 +319,14 @@ export default function AdminStudentsPage() {
       const json = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        setMessage(json?.error || "Öğrenci silinemedi.");
+        setMessage(json?.error || "Student could not be deleted.");
         return;
       }
 
-      setMessage(json?.message || "Öğrenci silindi.");
+      setMessage(json?.message || "Student deleted.");
       loadData();
     } catch (e: any) {
-      setMessage(e?.message || "Beklenmeyen hata oluştu.");
+      setMessage(e?.message || "Unexpected error occurred.");
     }
   };
 
@@ -247,21 +337,21 @@ export default function AdminStudentsPage() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold">Students</h1>
             <p className="text-sm mt-1">
-              Öğrencileri görüntüle, yeni öğrenci oluştur, düzenle, pasif yap veya sil.
+              View students, create a new student, edit details, deactivate, or delete.
             </p>
           </div>
 
           <div className="bg-yellow-50 border border-black rounded-xl p-4 mb-6">
-            <h2 className="text-xl font-bold mb-4">Yeni Öğrenci Oluştur</h2>
+            <h2 className="text-xl font-bold mb-4">Create New Student</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-bold mb-1">Username</label>
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full p-3 rounded-lg border border-black bg-white"
-                  placeholder="Örn: sila"
+                  placeholder="Example: sila"
                 />
               </div>
 
@@ -271,7 +361,7 @@ export default function AdminStudentsPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full p-3 rounded-lg border border-black bg-white"
-                  placeholder="Örn: sila@mail.com"
+                  placeholder="Example: sila@mail.com"
                 />
               </div>
 
@@ -281,7 +371,7 @@ export default function AdminStudentsPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full p-3 rounded-lg border border-black bg-white"
-                  placeholder="Şifre"
+                  placeholder="Password"
                 />
               </div>
 
@@ -300,6 +390,22 @@ export default function AdminStudentsPage() {
                   <option value="C2">C2</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1">Class</label>
+                <select
+                  value={classId}
+                  onChange={(e) => setClassId(e.target.value)}
+                  className="w-full p-3 rounded-lg border border-black bg-white"
+                >
+                  <option value="">Select class</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.class_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="mt-4">
@@ -308,7 +414,7 @@ export default function AdminStudentsPage() {
                 disabled={creating}
                 className="px-4 py-3 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 transition disabled:opacity-60"
               >
-                {creating ? "Oluşturuluyor..." : "Öğrenci Oluştur"}
+                {creating ? "Creating..." : "Create Student"}
               </button>
             </div>
           </div>
@@ -335,7 +441,7 @@ export default function AdminStudentsPage() {
                   className="bg-yellow-50 border border-black rounded-xl p-4"
                 >
                   {editingId === student.id ? (
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                       <div>
                         <label className="block text-sm font-bold mb-1">Username</label>
                         <input
@@ -346,10 +452,19 @@ export default function AdminStudentsPage() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-bold mb-1">Current Class</label>
-                        <div className="w-full p-3 rounded-lg border border-black bg-gray-100">
-                          {classMap[student.id] || "-"}
-                        </div>
+                        <label className="block text-sm font-bold mb-1">Class</label>
+                        <select
+                          value={editClassId}
+                          onChange={(e) => setEditClassId(e.target.value)}
+                          className="w-full p-3 rounded-lg border border-black bg-white"
+                        >
+                          <option value="">Select class</option>
+                          {classes.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.class_name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       <div>
@@ -375,20 +490,20 @@ export default function AdminStudentsPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 md:col-span-2">
                         <button
                           onClick={() => saveEdit(student.id)}
                           disabled={savingEdit}
                           className="px-4 py-3 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 transition disabled:opacity-60"
                         >
-                          {savingEdit ? "Kaydediliyor..." : "Kaydet"}
+                          {savingEdit ? "Saving..." : "Save"}
                         </button>
 
                         <button
                           onClick={cancelEdit}
                           className="px-4 py-3 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
                         >
-                          İptal
+                          Cancel
                         </button>
                       </div>
                     </div>
@@ -428,21 +543,21 @@ export default function AdminStudentsPage() {
                           onClick={() => startEdit(student)}
                           className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
                         >
-                          Düzenle
+                          Edit
                         </button>
 
                         <button
                           onClick={() => toggleActive(student)}
                           className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
                         >
-                          {student.is_active ? "Pasif Yap" : "Aktif Yap"}
+                          {student.is_active ? "Deactivate" : "Activate"}
                         </button>
 
                         <button
                           onClick={() => deleteStudent(student)}
                           className="px-3 py-2 rounded-lg border border-black bg-red-500 text-white hover:bg-red-600 transition font-bold"
                         >
-                          Sil
+                          Delete
                         </button>
                       </div>
                     </div>
