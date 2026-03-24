@@ -22,8 +22,11 @@ type QuestionRow = {
   points: number;
 };
 
-type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
+type ResultRow = {
+  quiz_id: number;
+};
 
+type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
 type GroupedQuizMap = Record<string, Record<string, QuizRow[]>>;
 
 export default function TakeTestPage() {
@@ -41,6 +44,9 @@ export default function TakeTestPage() {
   const [finished, setFinished] = useState(false);
 
   const [studentId, setStudentId] = useState("");
+  const [completedQuizIds, setCompletedQuizIds] = useState<number[]>([]);
+  const [openUnits, setOpenUnits] = useState<Record<string, boolean>>({});
+  const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const loadUser = async () => {
@@ -105,6 +111,24 @@ export default function TakeTestPage() {
     return grouped;
   }, [quizzes]);
 
+  const loadCompletedQuizzes = async (sid: string) => {
+    const { data, error } = await supabase
+      .from("leaderboard")
+      .select("quiz_id")
+      .eq("student_id", sid);
+
+    if (error) {
+      setCompletedQuizIds([]);
+      return;
+    }
+
+    const ids = Array.isArray(data)
+      ? (data as ResultRow[]).map((row) => Number(row.quiz_id)).filter(Boolean)
+      : [];
+
+    setCompletedQuizIds(ids);
+  };
+
   const loadQuizzes = async () => {
     setMsg("");
     setLoadingQuizzes(true);
@@ -128,7 +152,6 @@ export default function TakeTestPage() {
     }
 
     const level = profile.level ? String(profile.level).trim() : "all";
-
     let className = profile.class_name ? String(profile.class_name).trim() : "all";
 
     const { data: classStudent } = await supabase
@@ -173,6 +196,27 @@ export default function TakeTestPage() {
       setQuizId(null);
     }
 
+    const initialOpenUnits: Record<string, boolean> = {};
+    const initialOpenTopics: Record<string, boolean> = {};
+
+    list.forEach((q, index) => {
+      const unitKey = q.unit || "No Unit";
+      const { topic } = getTopicAndTest(q);
+      const topicKey = `${unitKey}__${topic}`;
+
+      if (index === 0) {
+        initialOpenUnits[unitKey] = true;
+        initialOpenTopics[topicKey] = true;
+      } else {
+        if (initialOpenUnits[unitKey] === undefined) initialOpenUnits[unitKey] = false;
+        if (initialOpenTopics[topicKey] === undefined) initialOpenTopics[topicKey] = false;
+      }
+    });
+
+    setOpenUnits(initialOpenUnits);
+    setOpenTopics(initialOpenTopics);
+
+    await loadCompletedQuizzes(studentId);
     setLoadingQuizzes(false);
   };
 
@@ -214,6 +258,14 @@ export default function TakeTestPage() {
       setQuestions([]);
     }
   }, [quizId]);
+
+  const toggleUnit = (unitKey: string) => {
+    setOpenUnits((prev) => ({ ...prev, [unitKey]: !prev[unitKey] }));
+  };
+
+  const toggleTopic = (topicKey: string) => {
+    setOpenTopics((prev) => ({ ...prev, [topicKey]: !prev[topicKey] }));
+  };
 
   const pick = (questionId: number, option: "A" | "B" | "C" | "D") => {
     if (finished) return;
@@ -271,6 +323,7 @@ export default function TakeTestPage() {
       }
 
       setMsg(json?.message || "Completed successfully.");
+      await loadCompletedQuizzes(studentId);
     } catch (e: any) {
       setMsg(e?.message || "Unexpected error");
     } finally {
@@ -284,6 +337,10 @@ export default function TakeTestPage() {
     setMsg("");
   };
 
+  const selectedQuizDetails = selectedQuiz ? getTopicAndTest(selectedQuiz) : null;
+  const selectedQuizCompleted = selectedQuiz ? completedQuizIds.includes(selectedQuiz.id) : false;
+  const totalQuizCount = quizzes.length;
+
   return (
     <div
       className="min-h-screen w-full overflow-x-hidden text-black"
@@ -296,7 +353,7 @@ export default function TakeTestPage() {
         >
           <h2 className="text-2xl font-bold mb-2">Take a Test</h2>
           <p className="text-sm opacity-90">
-            Choose a quiz, answer the questions, then submit to see your result.
+            Choose your unit, topic, and test. Completed tests are marked, but you can still retake them.
           </p>
 
           {msg ? (
@@ -306,9 +363,9 @@ export default function TakeTestPage() {
             </div>
           ) : null}
 
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold mb-3">Select quiz</label>
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1.7fr_0.9fr] gap-4 items-start">
+            <div>
+              <label className="block text-sm font-bold mb-3">Available tests</label>
 
               {loadingQuizzes ? (
                 <div
@@ -326,60 +383,158 @@ export default function TakeTestPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {Object.entries(groupedQuizzes).map(([unitKey, topics]) => (
-                    <div
-                      key={unitKey}
-                      className="border border-black rounded-xl p-4"
-                      style={{ backgroundColor: "var(--bg-soft)" }}
-                    >
-                      <h3 className="text-lg font-extrabold mb-3">{unitKey}</h3>
+                  {Object.entries(groupedQuizzes).map(([unitKey, topics]) => {
+                    const isUnitOpen = !!openUnits[unitKey];
+                    const unitTestCount = Object.values(topics).reduce(
+                      (sum, arr) => sum + arr.length,
+                      0
+                    );
 
-                      <div className="space-y-3">
-                        {Object.entries(topics).map(([topicKey, tests]) => (
-                          <div key={topicKey}>
-                            <h4 className="font-bold mb-2">{topicKey}</h4>
+                    return (
+                      <div
+                        key={unitKey}
+                        className="border border-black rounded-xl overflow-hidden"
+                        style={{ backgroundColor: "var(--bg-soft)" }}
+                      >
+                        <button
+                          onClick={() => toggleUnit(unitKey)}
+                          className="w-full flex items-center justify-between px-4 py-4 text-left font-extrabold border-b border-black"
+                          style={{ backgroundColor: "var(--bg-card)" }}
+                        >
+                          <span>
+                            {unitKey}{" "}
+                            <span className="text-xs opacity-70">
+                              ({unitTestCount} test{unitTestCount > 1 ? "s" : ""})
+                            </span>
+                          </span>
+                          <span>{isUnitOpen ? "−" : "+"}</span>
+                        </button>
 
-                            <div className="space-y-2 pl-2">
-                              {tests.map((q) => {
-                                const { testName } = getTopicAndTest(q);
-                                const isSelected = quizId === q.id;
+                        {isUnitOpen ? (
+                          <div className="p-4 space-y-3">
+                            {Object.entries(topics).map(([topicKeyRaw, tests]) => {
+                              const topicKey = `${unitKey}__${topicKeyRaw}`;
+                              const isTopicOpen = !!openTopics[topicKey];
 
-                                return (
+                              return (
+                                <div
+                                  key={topicKey}
+                                  className="border border-black rounded-lg overflow-hidden"
+                                  style={{ backgroundColor: "var(--bg-card)" }}
+                                >
                                   <button
-                                    key={q.id}
-                                    onClick={() => setQuizId(q.id)}
-                                    disabled={submitting}
-                                    className="block w-full text-left px-4 py-3 rounded-lg border border-black transition font-semibold"
-                                    style={{
-                                      backgroundColor: isSelected
-                                        ? "var(--bg-button)"
-                                        : "var(--bg-card)",
-                                      color: "var(--text-main)",
-                                    }}
+                                    onClick={() => toggleTopic(topicKey)}
+                                    className="w-full flex items-center justify-between px-4 py-3 text-left font-bold border-b border-black"
+                                    style={{ backgroundColor: "var(--bg-soft)" }}
                                   >
-                                    {testName}
+                                    <span>
+                                      {topicKeyRaw}{" "}
+                                      <span className="text-xs opacity-70">
+                                        ({tests.length} test{tests.length > 1 ? "s" : ""})
+                                      </span>
+                                    </span>
+                                    <span>{isTopicOpen ? "−" : "+"}</span>
                                   </button>
-                                );
-                              })}
-                            </div>
+
+                                  {isTopicOpen ? (
+                                    <div className="p-3 space-y-2">
+                                      {tests.map((q) => {
+                                        const { testName } = getTopicAndTest(q);
+                                        const isSelected = quizId === q.id;
+                                        const isCompleted = completedQuizIds.includes(q.id);
+
+                                        return (
+                                          <button
+                                            key={q.id}
+                                            onClick={() => setQuizId(q.id)}
+                                            disabled={submitting}
+                                            className="block w-full text-left px-4 py-3 rounded-lg border border-black transition"
+                                            style={{
+                                              backgroundColor: isSelected
+                                                ? "var(--bg-button)"
+                                                : "var(--bg-card)",
+                                              color: "var(--text-main)",
+                                            }}
+                                          >
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                              <span className="font-semibold">{testName}</span>
+
+                                              {isCompleted ? (
+                                                <span
+                                                  className="text-xs px-2 py-1 rounded-md border border-black"
+                                                  style={{ backgroundColor: "var(--bg-soft)" }}
+                                                >
+                                                  Completed
+                                                </span>
+                                              ) : null}
+                                            </div>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
+                        ) : null}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            <div
-              className="border border-black rounded-xl p-4"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <div className="text-xs opacity-80">Progress</div>
-              <div className="font-bold">
-                {answeredCount}/{questions.length} answered
+            <div className="space-y-4">
+              <div
+                className="border border-black rounded-xl p-4"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
+                <div className="text-xs opacity-80">Quiz browser</div>
+                <div className="font-bold mt-1">{totalQuizCount} tests available</div>
+                <div className="text-xs opacity-80 mt-2">
+                  Completed tests are locked on the leaderboard, but you can still practice them again.
+                </div>
               </div>
-              <div className="text-xs opacity-80 mt-1">Total points: {totalPoints}</div>
+
+              <div
+                className="border border-black rounded-xl p-4"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
+                <div className="text-xs opacity-80">Selected test</div>
+
+                {selectedQuiz ? (
+                  <>
+                    <div className="font-bold mt-1">{selectedQuiz.unit || "No Unit"}</div>
+                    <div className="text-sm mt-2">
+                      Topic: <b>{selectedQuizDetails?.topic || "-"}</b>
+                    </div>
+                    <div className="text-sm mt-1">
+                      Test: <b>{selectedQuizDetails?.testName || "-"}</b>
+                    </div>
+                    <div className="text-sm mt-1">
+                      Status:{" "}
+                      <b>{selectedQuizCompleted ? "Completed before" : "New test"}</b>
+                    </div>
+                    <div className="text-sm mt-1">
+                      Questions: <b>{questions.length}</b>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm mt-2 opacity-80">No test selected yet.</div>
+                )}
+              </div>
+
+              <div
+                className="border border-black rounded-xl p-4"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
+                <div className="text-xs opacity-80">Progress</div>
+                <div className="font-bold mt-1">
+                  {answeredCount}/{questions.length} answered
+                </div>
+                <div className="text-xs opacity-80 mt-2">Total points: {totalPoints}</div>
+              </div>
             </div>
           </div>
         </div>
