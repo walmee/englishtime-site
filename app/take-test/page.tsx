@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -23,6 +23,8 @@ type QuestionRow = {
 };
 
 type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
+
+type GroupedQuizMap = Record<string, Record<string, QuizRow[]>>;
 
 export default function TakeTestPage() {
   const [msg, setMsg] = useState("");
@@ -80,6 +82,29 @@ export default function TakeTestPage() {
     return quiz.title || quiz.unit || "Quiz";
   };
 
+  const getTopicAndTest = (quiz: QuizRow) => {
+    const parts = quiz.title.split(" - ");
+    const topic = parts[1] || "General";
+    const testName = parts[2] || quiz.title;
+    return { topic, testName };
+  };
+
+  const groupedQuizzes = useMemo<GroupedQuizMap>(() => {
+    const grouped: GroupedQuizMap = {};
+
+    quizzes.forEach((q) => {
+      const unitKey = q.unit || "No Unit";
+      const { topic } = getTopicAndTest(q);
+
+      if (!grouped[unitKey]) grouped[unitKey] = {};
+      if (!grouped[unitKey][topic]) grouped[unitKey][topic] = [];
+
+      grouped[unitKey][topic].push(q);
+    });
+
+    return grouped;
+  }, [quizzes]);
+
   const loadQuizzes = async () => {
     setMsg("");
     setLoadingQuizzes(true);
@@ -104,7 +129,6 @@ export default function TakeTestPage() {
 
     const level = profile.level ? String(profile.level).trim() : "all";
 
-    // Önce gerçek class bilgisini class_students tablosundan al
     let className = profile.class_name ? String(profile.class_name).trim() : "all";
 
     const { data: classStudent } = await supabase
@@ -282,28 +306,69 @@ export default function TakeTestPage() {
             </div>
           ) : null}
 
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
             <div className="md:col-span-2">
-              <label className="block text-sm font-bold mb-1">Select quiz</label>
-              <select
-                value={quizId ?? ""}
-                onChange={(e) => setQuizId(Number(e.target.value))}
-                disabled={loadingQuizzes || submitting || quizzes.length === 0}
-                className="w-full p-3 rounded-lg border border-black"
-                style={{ backgroundColor: "var(--bg-soft)", color: "var(--text-main)" }}
-              >
-                {loadingQuizzes ? (
-                  <option>Loading quizzes...</option>
-                ) : quizzes.length === 0 ? (
-                  <option>No quizzes available</option>
-                ) : (
-                  quizzes.map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {getQuizLabel(q)}
-                    </option>
-                  ))
-                )}
-              </select>
+              <label className="block text-sm font-bold mb-3">Select quiz</label>
+
+              {loadingQuizzes ? (
+                <div
+                  className="w-full p-4 rounded-lg border border-black"
+                  style={{ backgroundColor: "var(--bg-soft)" }}
+                >
+                  Loading quizzes...
+                </div>
+              ) : quizzes.length === 0 ? (
+                <div
+                  className="w-full p-4 rounded-lg border border-black"
+                  style={{ backgroundColor: "var(--bg-soft)" }}
+                >
+                  No quizzes available
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(groupedQuizzes).map(([unitKey, topics]) => (
+                    <div
+                      key={unitKey}
+                      className="border border-black rounded-xl p-4"
+                      style={{ backgroundColor: "var(--bg-soft)" }}
+                    >
+                      <h3 className="text-lg font-extrabold mb-3">{unitKey}</h3>
+
+                      <div className="space-y-3">
+                        {Object.entries(topics).map(([topicKey, tests]) => (
+                          <div key={topicKey}>
+                            <h4 className="font-bold mb-2">{topicKey}</h4>
+
+                            <div className="space-y-2 pl-2">
+                              {tests.map((q) => {
+                                const { testName } = getTopicAndTest(q);
+                                const isSelected = quizId === q.id;
+
+                                return (
+                                  <button
+                                    key={q.id}
+                                    onClick={() => setQuizId(q.id)}
+                                    disabled={submitting}
+                                    className="block w-full text-left px-4 py-3 rounded-lg border border-black transition font-semibold"
+                                    style={{
+                                      backgroundColor: isSelected
+                                        ? "var(--bg-button)"
+                                        : "var(--bg-card)",
+                                      color: "var(--text-main)",
+                                    }}
+                                  >
+                                    {testName}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div
