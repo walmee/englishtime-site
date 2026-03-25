@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 
@@ -12,6 +12,12 @@ type TeacherClassRow = {
     class_name: string;
     level: string;
   } | null;
+};
+
+type AssignedClass = {
+  id: number;
+  class_name: string;
+  level: string;
 };
 
 type DashboardStats = {
@@ -26,16 +32,19 @@ export default function TeacherPage() {
 
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("");
+  const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     assignedClasses: 0,
     quizzes: 0,
     worksheets: 0,
     readings: 0,
   });
-  const [assignedClasses, setAssignedClasses] = useState<
-    { id: number; class_name: string; level: string }[]
-  >([]);
   const [message, setMessage] = useState("");
+
+  const classNamesText = useMemo(() => {
+    if (assignedClasses.length === 0) return "No classes assigned yet";
+    return assignedClasses.map((c) => c.class_name).join(", ");
+  }, [assignedClasses]);
 
   useEffect(() => {
     let mounted = true;
@@ -74,33 +83,52 @@ export default function TeacherPage() {
 
         const { data: teacherClassData, error: teacherClassError } = await supabase
           .from("teacher_classes")
-          .select(`
+          .select(
+            `
             class_id,
             classes (
               id,
               class_name,
               level
             )
-          `)
+          `
+          )
           .eq("teacher_id", userId);
 
         if (teacherClassError) {
           setMessage(teacherClassError.message);
         }
 
-        const classList =
-  (teacherClassData ?? [])
-    .map((row: any) => row.classes)
-    .filter(Boolean)
-    .map((cls: any) => ({
-      id: cls.id,
-      class_name: cls.class_name,
-      level: cls.level,
-    }));
+        const classList: AssignedClass[] = (teacherClassData ?? [])
+          .map((row: any) => row.classes)
+          .filter(Boolean)
+          .map((cls: any) => ({
+            id: cls.id,
+            class_name: cls.class_name,
+            level: cls.level,
+          }));
+
+        const classNames = classList.map((c) => c.class_name);
 
         const [quizzesRes, worksheetsRes, readingsRes] = await Promise.all([
-          supabase.from("quizzes").select("*", { count: "exact", head: true }),
-          supabase.from("worksheets").select("*", { count: "exact", head: true }),
+          classNames.length > 0
+            ? supabase
+                .from("quizzes")
+                .select("*", { count: "exact", head: true })
+                .in("class_name", classNames)
+            : supabase.from("quizzes").select("*", { count: "exact", head: true }).eq("id", -1),
+          classList.length > 0
+            ? supabase
+                .from("worksheets")
+                .select("*", { count: "exact", head: true })
+                .in(
+                  "class_id",
+                  classList.map((c) => c.id)
+                )
+            : supabase
+                .from("worksheets")
+                .select("*", { count: "exact", head: true })
+                .eq("id", -1),
           supabase.from("reading_texts").select("*", { count: "exact", head: true }),
         ]);
 
@@ -150,8 +178,13 @@ export default function TeacherPage() {
             Welcome back, {username}!
           </h1>
           <p className="mt-3 text-sm md:text-base opacity-80 max-w-3xl">
-            Manage your classes, worksheets, quizzes, and reading materials from one place.
+            Manage your assigned classes, worksheets, quizzes, and classroom content from one place.
           </p>
+
+          <div className="mt-5 rounded-2xl border border-black bg-yellow-50 p-4">
+            <div className="text-xs opacity-70">Assigned class summary</div>
+            <div className="mt-1 font-bold">{classNamesText}</div>
+          </div>
         </section>
 
         {message ? (
@@ -167,12 +200,12 @@ export default function TeacherPage() {
           </div>
 
           <div className="rounded-2xl border border-black bg-yellow-100 p-5">
-            <div className="text-xs opacity-70">Quizzes</div>
+            <div className="text-xs opacity-70">My Class Quizzes</div>
             <div className="mt-2 text-3xl font-extrabold">{stats.quizzes}</div>
           </div>
 
           <div className="rounded-2xl border border-black bg-yellow-100 p-5">
-            <div className="text-xs opacity-70">Worksheets</div>
+            <div className="text-xs opacity-70">My Class Worksheets</div>
             <div className="mt-2 text-3xl font-extrabold">{stats.worksheets}</div>
           </div>
 
@@ -186,7 +219,7 @@ export default function TeacherPage() {
           <div className="mb-5">
             <h2 className="text-2xl font-bold">My Classes</h2>
             <p className="text-sm opacity-80 mt-1">
-              These are the classes assigned to you.
+              These are the classes currently assigned to you.
             </p>
           </div>
 
@@ -204,6 +237,21 @@ export default function TeacherPage() {
                   <div className="text-xs opacity-70">Class</div>
                   <div className="text-xl font-extrabold mt-1">{cls.class_name}</div>
                   <div className="mt-2 text-sm opacity-80">Level: {cls.level}</div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link
+                      href="/teacher/worksheets"
+                      className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold text-sm"
+                    >
+                      Worksheets
+                    </Link>
+                    <Link
+                      href="/teacher/quizzes"
+                      className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold text-sm"
+                    >
+                      Quizzes
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>
@@ -224,7 +272,9 @@ export default function TeacherPage() {
               className="block rounded-2xl border border-black bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:bg-yellow-200"
             >
               <h3 className="text-lg font-bold">Quizzes</h3>
-              <p className="mt-2 text-sm opacity-80">Create and manage quizzes.</p>
+              <p className="mt-2 text-sm opacity-80">
+                Create and manage quizzes for your classes.
+              </p>
             </Link>
 
             <Link
@@ -232,7 +282,9 @@ export default function TeacherPage() {
               className="block rounded-2xl border border-black bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:bg-yellow-200"
             >
               <h3 className="text-lg font-bold">Questions</h3>
-              <p className="mt-2 text-sm opacity-80">Manage quiz questions.</p>
+              <p className="mt-2 text-sm opacity-80">
+                Organize and manage quiz questions more easily.
+              </p>
             </Link>
 
             <Link
@@ -240,7 +292,9 @@ export default function TeacherPage() {
               className="block rounded-2xl border border-black bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:bg-yellow-200"
             >
               <h3 className="text-lg font-bold">Worksheets</h3>
-              <p className="mt-2 text-sm opacity-80">Upload and edit worksheets.</p>
+              <p className="mt-2 text-sm opacity-80">
+                Upload, edit, and review worksheets for assigned classes.
+              </p>
             </Link>
 
             <Link
@@ -248,7 +302,9 @@ export default function TeacherPage() {
               className="block rounded-2xl border border-black bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:bg-yellow-200"
             >
               <h3 className="text-lg font-bold">Reading Texts</h3>
-              <p className="mt-2 text-sm opacity-80">Manage reading materials.</p>
+              <p className="mt-2 text-sm opacity-80">
+                Manage reading materials by level.
+              </p>
             </Link>
 
             <Link
@@ -256,7 +312,9 @@ export default function TeacherPage() {
               className="block rounded-2xl border border-black bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:bg-yellow-200"
             >
               <h3 className="text-lg font-bold">Leaderboard</h3>
-              <p className="mt-2 text-sm opacity-80">Review class rankings.</p>
+              <p className="mt-2 text-sm opacity-80">
+                Review rankings and classroom performance.
+              </p>
             </Link>
 
             <Link
@@ -264,7 +322,9 @@ export default function TeacherPage() {
               className="block rounded-2xl border border-black bg-yellow-50 p-5 transition hover:-translate-y-0.5 hover:bg-yellow-200"
             >
               <h3 className="text-lg font-bold">Quiz Insights</h3>
-              <p className="mt-2 text-sm opacity-80">See student mistakes and trends.</p>
+              <p className="mt-2 text-sm opacity-80">
+                See wrong-answer trends and student mistakes.
+              </p>
             </Link>
           </div>
         </section>
