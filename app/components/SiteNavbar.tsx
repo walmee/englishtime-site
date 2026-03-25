@@ -174,6 +174,7 @@ export default function SiteNavbar() {
         { key: "teacher-home", label: "Overview", href: "/teacher" },
         { key: "teacher-quizzes", label: "Quizzes", href: "/teacher/quizzes" },
         { key: "teacher-questions", label: "Questions", href: "/teacher/questions" },
+        { key: "bulk", label: "Bulk Upload", href: "/teacher/bulk-questions" }
         { key: "teacher-worksheets", label: "Worksheets", href: "/teacher/worksheets" },
         { key: "teacher-reading-texts", label: "Reading Texts", href: "/teacher/reading-texts" },
         { key: "teacher-writing", label: "Writing", href: "/teacher/writing" },
