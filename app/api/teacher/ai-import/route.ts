@@ -47,7 +47,10 @@ export async function POST(req: Request) {
 
     if (!supabaseUrl || !serviceKey) {
       return NextResponse.json(
-        { error: "Missing env: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" },
+        {
+          error:
+            "Missing env: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
+        },
         { status: 500 }
       );
     }
@@ -60,9 +63,10 @@ export async function POST(req: Request) {
     }
 
     const authHeader = req.headers.get("authorization");
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.replace("Bearer ", "")
-      : null;
+    const token =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.replace("Bearer ", "")
+        : null;
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -98,85 +102,43 @@ export async function POST(req: Request) {
     const images = formData.getAll("images").filter(Boolean) as File[];
 
     if (!images.length) {
-      return NextResponse.json({ error: "No images uploaded." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No images uploaded." },
+        { status: 400 }
+      );
     }
 
     const content: any[] = [
       {
         type: "input_text",
         text:
-          "Extract multiple-choice English quiz questions from these uploaded images. " +
-          "Return only questions that clearly contain one question stem, four options (A, B, C, D), and one correct option. " +
-          "If a question is incomplete, skip it. " +
-          "Set points to 10 by default unless the image clearly shows another point value. " +
-          "Keep wording clean and readable. " +
-          "Return a JSON object with a top-level 'questions' array.",
+          "Extract English multiple-choice quiz questions from these images. " +
+          "Only return complete questions with one question text, four options (A, B, C, D), and one correct answer. " +
+          "Skip incomplete or unreadable questions. " +
+          "Default points to 10 unless clearly shown otherwise. " +
+          "Return valid JSON matching the requested schema only.",
       },
     ];
 
     for (const image of images) {
       const buffer = Buffer.from(await image.arrayBuffer());
-      const mime = image.type || "image/png";
+      const mimeType = image.type || "image/png";
       const base64 = buffer.toString("base64");
 
       content.push({
         type: "input_image",
-        image_url: `data:${mime};base64,${base64}`,
+        image_url: `data:${mimeType};base64,${base64}`,
       });
     }
-
-    const schema = {
-      name: "quiz_questions",
-      strict: true,
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          questions: {
-            type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                question_text: { type: "string" },
-                option_a: { type: "string" },
-                option_b: { type: "string" },
-                option_c: { type: "string" },
-                option_d: { type: "string" },
-                correct_option: {
-                  type: "string",
-                  enum: ["A", "B", "C", "D"],
-                },
-                points: { type: "number" },
-                explanation: {
-                  type: ["string", "null"],
-                },
-              },
-              required: [
-                "question_text",
-                "option_a",
-                "option_b",
-                "option_c",
-                "option_d",
-                "correct_option",
-                "points",
-                "explanation",
-              ],
-            },
-          },
-        },
-        required: ["questions"],
-      },
-    };
 
     const openaiRes = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5.4",
+        model: "gpt-4.1-mini",
         input: [
           {
             role: "user",
@@ -186,9 +148,47 @@ export async function POST(req: Request) {
         text: {
           format: {
             type: "json_schema",
-            name: schema.name,
-            schema: schema.schema,
+            name: "quiz_questions",
             strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                questions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      question_text: { type: "string" },
+                      option_a: { type: "string" },
+                      option_b: { type: "string" },
+                      option_c: { type: "string" },
+                      option_d: { type: "string" },
+                      correct_option: {
+                        type: "string",
+                        enum: ["A", "B", "C", "D"],
+                      },
+                      points: { type: "number" },
+                      explanation: {
+                        anyOf: [{ type: "string" }, { type: "null" }],
+                      },
+                    },
+                    required: [
+                      "question_text",
+                      "option_a",
+                      "option_b",
+                      "option_c",
+                      "option_d",
+                      "correct_option",
+                      "points",
+                      "explanation",
+                    ],
+                  },
+                },
+              },
+              required: ["questions"],
+            },
           },
         },
       }),
@@ -198,14 +198,18 @@ export async function POST(req: Request) {
 
     if (!openaiRes.ok) {
       return NextResponse.json(
-        { error: openaiJson?.error?.message || "OpenAI request failed." },
+        {
+          error:
+            openaiJson?.error?.message ||
+            "OpenAI request failed.",
+        },
         { status: 500 }
       );
     }
 
     const outputText =
-      openaiJson?.output?.[0]?.content?.find((c: any) => c.type === "output_text")?.text ||
       openaiJson?.output_text ||
+      openaiJson?.output?.[0]?.content?.find((c: any) => c.type === "output_text")?.text ||
       "";
 
     if (!outputText) {
@@ -220,7 +224,7 @@ export async function POST(req: Request) {
       parsed = JSON.parse(outputText);
     } catch {
       return NextResponse.json(
-        { error: "Failed to parse structured model output." },
+        { error: "Failed to parse AI output." },
         { status: 500 }
       );
     }
@@ -233,7 +237,7 @@ export async function POST(req: Request) {
       note:
         questions.length > 0
           ? `${questions.length} question(s) extracted. Review before saving.`
-          : "No complete multiple-choice questions were found in the uploaded images.",
+          : "No complete questions found in the uploaded images.",
     });
   } catch (e: any) {
     return NextResponse.json(
