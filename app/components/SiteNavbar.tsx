@@ -152,6 +152,7 @@ export default function SiteNavbar() {
         { key: "take-test", label: "Take Test", href: "/take-test" },
         { key: "history", label: "History", href: "/history" },
         { key: "progress", label: "Progress", href: "/progress" },
+        { key: "writing", label: "Writing", href: "/writing" },
       ],
     },
     {
@@ -175,6 +176,7 @@ export default function SiteNavbar() {
         { key: "teacher-questions", label: "Questions", href: "/teacher/questions" },
         { key: "teacher-worksheets", label: "Worksheets", href: "/teacher/worksheets" },
         { key: "teacher-reading-texts", label: "Reading Texts", href: "/teacher/reading-texts" },
+        { key: "teacher-writing", label: "Writing", href: "/teacher/writing" },
         { key: "teacher-leaderboard", label: "Leaderboard", href: "/teacher/leaderboard" },
         { key: "teacher-quiz-insights", label: "Quiz Insights", href: "/teacher/quiz-insights" },
         { key: "teacher-tools", label: "Tools", href: "/teacher/tools" },
@@ -196,6 +198,7 @@ export default function SiteNavbar() {
         { key: "admin-users", label: "Students", href: "/admin/users" },
         { key: "admin-worksheets", label: "Worksheets", href: "/admin/worksheets" },
         { key: "admin-reading-texts", label: "Reading Texts", href: "/admin/reading-texts" },
+        { key: "admin-writing", label: "Writing", href: "/teacher/writing" },
         { key: "admin-leaderboard", label: "Leaderboard", href: "/admin/leaderboard" },
         { key: "admin-quiz-insights", label: "Quiz Insights", href: "/admin/quiz-insights" },
         { key: "admin-tools", label: "Tools", href: "/admin/tools" },
@@ -209,6 +212,7 @@ export default function SiteNavbar() {
         { key: "take-test", label: "Take Test", href: "/take-test" },
         { key: "history", label: "History", href: "/history" },
         { key: "progress", label: "Progress", href: "/progress" },
+        { key: "writing", label: "Writing", href: "/writing" },
         { key: "leaderboard", label: "Leaderboard", href: "/leaderboard" },
         { key: "worksheets", label: "Worksheets", href: "/worksheets" },
       ],
@@ -252,6 +256,9 @@ export default function SiteNavbar() {
   }, [role, loggingOut]);
 
   const initial = username?.trim()?.charAt(0)?.toUpperCase() || "U";
+
+  const profileHref =
+    role === "admin" ? "/admin" : role === "teacher" ? "/teacher" : "/dashboard";
 
   return (
     <>
@@ -335,9 +342,13 @@ export default function SiteNavbar() {
                         )}
 
                         <Link
-                          href="/dashboard"
+                          href={profileHref}
                           className={`block px-5 py-4 text-sm text-[#222222] transition hover:bg-[#f5e7b8] ${
-                            pathname === "/dashboard" ? "bg-[#e0b33a] font-bold text-black" : ""
+                            pathname === "/dashboard" ||
+                            pathname === "/teacher" ||
+                            pathname === "/admin"
+                              ? "bg-[#e0b33a] font-bold text-black"
+                              : ""
                           }`}
                         >
                           Profile
