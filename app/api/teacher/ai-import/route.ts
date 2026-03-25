@@ -14,29 +14,46 @@ type ParsedQuestion = {
   explanation?: string | null;
 };
 
-function normalizeQuestions(input: any): ParsedQuestion[] {
-  const rawQuestions = Array.isArray(input?.questions) ? input.questions : [];
+function normalizeQuestions(input: unknown): ParsedQuestion[] {
+  const rawQuestions = Array.isArray((input as { questions?: unknown[] })?.questions)
+    ? ((input as { questions: unknown[] }).questions ?? [])
+    : [];
 
-  return rawQuestions
-    .map((q: any) => ({
-      question_text: String(q?.question_text || "").trim(),
-      option_a: String(q?.option_a || "").trim(),
-      option_b: String(q?.option_b || "").trim(),
-      option_c: String(q?.option_c || "").trim(),
-      option_d: String(q?.option_d || "").trim(),
-      correct_option: String(q?.correct_option || "A").toUpperCase() as "A" | "B" | "C" | "D",
-      points: Number(q?.points) > 0 ? Number(q.points) : 10,
-      explanation: q?.explanation ? String(q.explanation).trim() : null,
-    }))
-    .filter(
-      (q) =>
-        q.question_text &&
-        q.option_a &&
-        q.option_b &&
-        q.option_c &&
-        q.option_d &&
-        ["A", "B", "C", "D"].includes(q.correct_option)
+  const mapped: ParsedQuestion[] = rawQuestions.map((item: unknown) => {
+    const q = (item ?? {}) as Record<string, unknown>;
+
+    const correctRaw = String(q.correct_option ?? "A").toUpperCase();
+    const correct_option: "A" | "B" | "C" | "D" =
+      correctRaw === "B"
+        ? "B"
+        : correctRaw === "C"
+        ? "C"
+        : correctRaw === "D"
+        ? "D"
+        : "A";
+
+    return {
+      question_text: String(q.question_text ?? "").trim(),
+      option_a: String(q.option_a ?? "").trim(),
+      option_b: String(q.option_b ?? "").trim(),
+      option_c: String(q.option_c ?? "").trim(),
+      option_d: String(q.option_d ?? "").trim(),
+      correct_option,
+      points: Number(q.points) > 0 ? Number(q.points) : 10,
+      explanation: q.explanation ? String(q.explanation).trim() : null,
+    };
+  });
+
+  return mapped.filter((q: ParsedQuestion) => {
+    return (
+      q.question_text.length > 0 &&
+      q.option_a.length > 0 &&
+      q.option_b.length > 0 &&
+      q.option_c.length > 0 &&
+      q.option_d.length > 0 &&
+      ["A", "B", "C", "D"].includes(q.correct_option)
     );
+  });
 }
 
 export async function POST(req: Request) {
@@ -108,7 +125,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const content: any[] = [
+    const content: Array<Record<string, string>> = [
       {
         type: "input_text",
         text:
@@ -199,9 +216,7 @@ export async function POST(req: Request) {
     if (!openaiRes.ok) {
       return NextResponse.json(
         {
-          error:
-            openaiJson?.error?.message ||
-            "OpenAI request failed.",
+          error: openaiJson?.error?.message || "OpenAI request failed.",
         },
         { status: 500 }
       );
@@ -209,7 +224,9 @@ export async function POST(req: Request) {
 
     const outputText =
       openaiJson?.output_text ||
-      openaiJson?.output?.[0]?.content?.find((c: any) => c.type === "output_text")?.text ||
+      openaiJson?.output?.[0]?.content?.find(
+        (c: { type?: string; text?: string }) => c.type === "output_text"
+      )?.text ||
       "";
 
     if (!outputText) {
@@ -219,7 +236,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let parsed: any;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(outputText);
     } catch {
@@ -239,10 +256,10 @@ export async function POST(req: Request) {
           ? `${questions.length} question(s) extracted. Review before saving.`
           : "No complete questions found in the uploaded images.",
     });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "Unexpected server error." },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const message =
+      e instanceof Error ? e.message : "Unexpected server error.";
+
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
