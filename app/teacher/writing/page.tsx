@@ -24,12 +24,24 @@ type StudentSubmissionRow = {
   student_id: string;
   submission_text: string;
   created_at: string;
+  score: number | null;
+  feedback: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
 };
 
 type StudentProfileRow = {
   id: string;
   username: string | null;
 };
+
+type ReviewDraftMap = Record<
+  number,
+  {
+    score: string;
+    feedback: string;
+  }
+>;
 
 export default function TeacherWritingPage() {
   const router = useRouter();
@@ -43,6 +55,8 @@ export default function TeacherWritingPage() {
   const [topics, setTopics] = useState<WritingTopicRow[]>([]);
   const [submissions, setSubmissions] = useState<StudentSubmissionRow[]>([]);
   const [studentMap, setStudentMap] = useState<Record<string, string>>({});
+  const [reviewDrafts, setReviewDrafts] = useState<ReviewDraftMap>({});
+  const [savingReviewId, setSavingReviewId] = useState<number | null>(null);
 
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -113,6 +127,7 @@ export default function TeacherWritingPage() {
       setTopics([]);
       setSubmissions([]);
       setStudentMap({});
+      setReviewDrafts({});
       setLoading(false);
       return;
     }
@@ -139,13 +154,16 @@ export default function TeacherWritingPage() {
     if (topicIds.length === 0) {
       setSubmissions([]);
       setStudentMap({});
+      setReviewDrafts({});
       setLoading(false);
       return;
     }
 
     const { data: submissionData, error: submissionError } = await supabase
       .from("writing_submissions")
-      .select("id, topic_id, student_id, submission_text, created_at")
+      .select(
+        "id, topic_id, student_id, submission_text, created_at, score, feedback, reviewed_at, reviewed_by"
+      )
       .in("topic_id", topicIds)
       .order("created_at", { ascending: false });
 
@@ -160,6 +178,18 @@ export default function TeacherWritingPage() {
       ? (submissionData as StudentSubmissionRow[])
       : [];
     setSubmissions(submissionRows);
+
+    const draftMap: ReviewDraftMap = {};
+    submissionRows.forEach((submission) => {
+      draftMap[submission.id] = {
+        score:
+          submission.score === null || submission.score === undefined
+            ? ""
+            : String(submission.score),
+        feedback: submission.feedback || "",
+      };
+    });
+    setReviewDrafts(draftMap);
 
     const studentIds = [...new Set(submissionRows.map((s) => s.student_id).filter(Boolean))];
 
@@ -253,13 +283,74 @@ export default function TeacherWritingPage() {
     await loadAll(teacherId);
   };
 
+  const updateReviewDraft = (
+    submissionId: number,
+    field: "score" | "feedback",
+    value: string
+  ) => {
+    setReviewDrafts((prev) => ({
+      ...prev,
+      [submissionId]: {
+        score: prev[submissionId]?.score || "",
+        feedback: prev[submissionId]?.feedback || "",
+        [field]: value,
+      },
+    }));
+  };
+
+  const saveReview = async (submissionId: number) => {
+    setMessage("");
+
+    if (!teacherId) {
+      setMessage("Teacher not found.");
+      return;
+    }
+
+    const draft = reviewDrafts[submissionId] || { score: "", feedback: "" };
+    const trimmedFeedback = draft.feedback.trim();
+    const trimmedScore = draft.score.trim();
+
+    let scoreValue: number | null = null;
+
+    if (trimmedScore) {
+      const parsed = Number(trimmedScore);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+        setMessage("Score must be between 0 and 100.");
+        return;
+      }
+      scoreValue = parsed;
+    }
+
+    setSavingReviewId(submissionId);
+
+    const { error } = await supabase
+      .from("writing_submissions")
+      .update({
+        score: scoreValue,
+        feedback: trimmedFeedback || null,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: teacherId,
+      })
+      .eq("id", submissionId);
+
+    if (error) {
+      setMessage(error.message);
+      setSavingReviewId(null);
+      return;
+    }
+
+    setMessage("Review saved.");
+    setSavingReviewId(null);
+    await loadAll(teacherId);
+  };
+
   return (
     <div className="min-h-screen bg-yellow-300 text-black">
       <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
         <section className="bg-yellow-100 border border-black rounded-2xl p-6">
           <h1 className="text-3xl font-bold mb-2">Writing Panel</h1>
           <p className="text-sm opacity-80">
-            Create a writing topic for a class and review student submissions.
+            Create a writing topic for a class, review student submissions, and add score and feedback.
           </p>
 
           {message ? (
@@ -375,23 +466,75 @@ export default function TeacherWritingPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredSubmissions.map((submission) => (
-                <div
-                  key={submission.id}
-                  className="bg-yellow-50 border border-black rounded-xl p-4"
-                >
-                  <div className="font-bold text-lg">
-                    {studentMap[submission.student_id] || submission.student_id}
-                  </div>
-                  <div className="text-xs opacity-70 mt-1">
-                    Submitted: {new Date(submission.created_at).toLocaleString("tr-TR")}
-                  </div>
+              {filteredSubmissions.map((submission) => {
+                const draft = reviewDrafts[submission.id] || {
+                  score: "",
+                  feedback: "",
+                };
 
-                  <div className="mt-4 whitespace-pre-wrap text-sm bg-white border border-black rounded-lg p-4">
-                    {submission.submission_text}
+                return (
+                  <div
+                    key={submission.id}
+                    className="bg-yellow-50 border border-black rounded-xl p-4"
+                  >
+                    <div className="font-bold text-lg">
+                      {studentMap[submission.student_id] || submission.student_id}
+                    </div>
+                    <div className="text-xs opacity-70 mt-1">
+                      Submitted: {new Date(submission.created_at).toLocaleString("tr-TR")}
+                    </div>
+
+                    <div className="mt-4 whitespace-pre-wrap text-sm bg-white border border-black rounded-lg p-4">
+                      {submission.submission_text}
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-[180px_1fr] gap-4">
+                      <div>
+                        <label className="block text-sm font-bold mb-1">Score</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={draft.score}
+                          onChange={(e) =>
+                            updateReviewDraft(submission.id, "score", e.target.value)
+                          }
+                          className="w-full p-3 rounded-lg border border-black bg-white"
+                          placeholder="0 - 100"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold mb-1">Feedback</label>
+                        <textarea
+                          value={draft.feedback}
+                          onChange={(e) =>
+                            updateReviewDraft(submission.id, "feedback", e.target.value)
+                          }
+                          className="w-full p-3 rounded-lg border border-black bg-white min-h-[120px]"
+                          placeholder="Write teacher feedback here..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-xs opacity-70">
+                        {submission.reviewed_at
+                          ? `Last reviewed: ${new Date(submission.reviewed_at).toLocaleString("tr-TR")}`
+                          : "Not reviewed yet"}
+                      </div>
+
+                      <button
+                        onClick={() => saveReview(submission.id)}
+                        disabled={savingReviewId === submission.id}
+                        className="px-4 py-3 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 transition disabled:opacity-60"
+                      >
+                        {savingReviewId === submission.id ? "Saving..." : "Save Review"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
