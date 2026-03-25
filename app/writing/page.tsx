@@ -17,6 +17,9 @@ type SubmissionRow = {
   topic_id: number;
   submission_text: string;
   created_at: string;
+  score: number | null;
+  feedback: string | null;
+  reviewed_at: string | null;
 };
 
 export default function WritingPage() {
@@ -72,7 +75,7 @@ export default function WritingPage() {
 
     const { data: submissionData, error: submissionError } = await supabase
       .from("writing_submissions")
-      .select("id, topic_id, submission_text, created_at")
+      .select("id, topic_id, submission_text, created_at, score, feedback, reviewed_at")
       .eq("student_id", sid)
       .in("topic_id", topicIds);
 
@@ -199,9 +202,7 @@ export default function WritingPage() {
                       </p>
                     </div>
 
-                    <span
-                      className="px-3 py-1 rounded-md border border-black bg-yellow-50 text-sm font-bold"
-                    >
+                    <span className="px-3 py-1 rounded-md border border-black bg-yellow-50 text-sm font-bold">
                       {isSubmitted ? "Submitted" : "Not Submitted"}
                     </span>
                   </div>
@@ -211,13 +212,36 @@ export default function WritingPage() {
                   </div>
 
                   {isSubmitted ? (
-                    <div className="mt-4">
-                      <div className="text-sm font-bold mb-2">Your submitted writing</div>
-                      <div className="whitespace-pre-wrap bg-white border border-black rounded-xl p-4 text-sm">
-                        {submission.submission_text}
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <div className="text-sm font-bold mb-2">Your submitted writing</div>
+                        <div className="whitespace-pre-wrap bg-white border border-black rounded-xl p-4 text-sm">
+                          {submission.submission_text}
+                        </div>
+                        <div className="text-xs opacity-70 mt-2">
+                          Submitted: {new Date(submission.created_at).toLocaleString("tr-TR")}
+                        </div>
                       </div>
-                      <div className="text-xs opacity-70 mt-2">
-                        Submitted: {new Date(submission.created_at).toLocaleString("tr-TR")}
+
+                      <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-4">
+                        <div className="bg-yellow-50 border border-black rounded-xl p-4">
+                          <div className="text-xs opacity-70">Score</div>
+                          <div className="text-2xl font-extrabold mt-1">
+                            {submission.score ?? "-"}
+                          </div>
+                        </div>
+
+                        <div className="bg-yellow-50 border border-black rounded-xl p-4">
+                          <div className="text-sm font-bold mb-2">Teacher Feedback</div>
+                          <div className="whitespace-pre-wrap text-sm">
+                            {submission.feedback || "No feedback yet."}
+                          </div>
+                          <div className="text-xs opacity-70 mt-3">
+                            {submission.reviewed_at
+                              ? `Reviewed: ${new Date(submission.reviewed_at).toLocaleString("tr-TR")}`
+                              : "Not reviewed yet"}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ) : (
