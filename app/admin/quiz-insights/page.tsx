@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type QuizRow = {
   id: number;
   title: string;
   unit: string | null;
+  class_name: string | null;
+  level: string | null;
 };
 
 type SummaryRow = {
@@ -61,6 +64,10 @@ type QuizInsightsResponse = {
   student_mistakes: StudentMistakeRow[];
 };
 
+type Role = "admin" | "teacher";
+
+type GroupedQuizMap = Record<string, Record<string, QuizRow[]>>;
+
 function getOptionText(
   row: {
     option_a: string;
@@ -82,12 +89,19 @@ function getOptionText(
 }
 
 export default function AdminQuizInsightsPage() {
+  const router = useRouter();
+
+  const [role, setRole] = useState<Role | null>(null);
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [quizId, setQuizId] = useState<number | null>(null);
-  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
+
+  const [loadingPage, setLoadingPage] = useState(true);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [message, setMessage] = useState("");
   const [openStudentId, setOpenStudentId] = useState<string | null>(null);
+
+  const [openUnits, setOpenUnits] = useState<Record<string, boolean>>({});
+  const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
 
   const [insights, setInsights] = useState<QuizInsightsResponse | null>(null);
 
@@ -99,35 +113,164 @@ export default function AdminQuizInsightsPage() {
     return insights.quiz.title || insights.quiz.unit || "Quiz";
   }, [insights]);
 
+  const getTopicAndTest = (quiz: QuizRow) => {
+    const parts = quiz.title.split(" - ");
+    const topic = parts[1] || "General";
+    const testName = parts[2] || quiz.title;
+    return { topic, testName };
+  };
+
+  const groupedQuizzes = useMemo<GroupedQuizMap>(() => {
+    const grouped: GroupedQuizMap = {};
+
+    quizzes.forEach((q) => {
+      const unitKey = q.unit || "No Unit";
+      const { topic } = getTopicAndTest(q);
+
+      if (!grouped[unitKey]) grouped[unitKey] = {};
+      if (!grouped[unitKey][topic]) grouped[unitKey][topic] = [];
+
+      grouped[unitKey][topic].push(q);
+    });
+
+    return grouped;
+  }, [quizzes]);
+
+  const selectedQuiz = useMemo(() => {
+    return quizzes.find((q) => q.id === quizId) || null;
+  }, [quizzes, quizId]);
+
   useEffect(() => {
     const loadQuizzes = async () => {
-      setLoadingQuizzes(true);
+      setLoadingPage(true);
       setMessage("");
 
-      const { data, error } = await supabase
-        .from("quizzes")
-        .select("id, title, unit")
-        .order("id", { ascending: false });
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (error) {
-        setMessage(error.message);
-        setQuizzes([]);
-        setLoadingQuizzes(false);
+      const userId = session?.user?.id;
+
+      if (!userId) {
+        router.replace("/login");
         return;
       }
 
-      const rows = Array.isArray(data) ? (data as QuizRow[]) : [];
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+
+      if (profileError || !profile) {
+        router.replace("/login");
+        return;
+      }
+
+      const currentRole = String(profile.role || "").toLowerCase();
+
+      if (currentRole !== "admin" && currentRole !== "teacher") {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setRole(currentRole as Role);
+
+      let rows: QuizRow[] = [];
+
+      if (currentRole === "teacher") {
+        const { data: teacherClasses, error: teacherClassError } = await supabase
+          .from("teacher_classes")
+          .select(
+            `
+            class_id,
+            classes (
+              class_name
+            )
+          `
+          )
+          .eq("teacher_id", userId);
+
+        if (teacherClassError) {
+          setMessage(teacherClassError.message);
+          setQuizzes([]);
+          setLoadingPage(false);
+          return;
+        }
+
+        const classNames = (teacherClasses || [])
+          .map((row: any) => row.classes?.class_name)
+          .filter(Boolean);
+
+        if (classNames.length === 0) {
+          setQuizzes([]);
+          setQuizId(null);
+          setLoadingPage(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select("id, title, unit, class_name, level")
+          .in("class_name", classNames)
+          .order("id", { ascending: false });
+
+        if (error) {
+          setMessage(error.message);
+          setQuizzes([]);
+          setLoadingPage(false);
+          return;
+        }
+
+        rows = Array.isArray(data) ? (data as QuizRow[]) : [];
+      } else {
+        const { data, error } = await supabase
+          .from("quizzes")
+          .select("id, title, unit, class_name, level")
+          .order("id", { ascending: false });
+
+        if (error) {
+          setMessage(error.message);
+          setQuizzes([]);
+          setLoadingPage(false);
+          return;
+        }
+
+        rows = Array.isArray(data) ? (data as QuizRow[]) : [];
+      }
+
       setQuizzes(rows);
 
       if (rows.length > 0) {
         setQuizId(rows[0].id);
+      } else {
+        setQuizId(null);
       }
 
-      setLoadingQuizzes(false);
+      const initialOpenUnits: Record<string, boolean> = {};
+      const initialOpenTopics: Record<string, boolean> = {};
+
+      rows.forEach((q, index) => {
+        const unitKey = q.unit || "No Unit";
+        const { topic } = getTopicAndTest(q);
+        const topicKey = `${unitKey}__${topic}`;
+
+        if (index === 0) {
+          initialOpenUnits[unitKey] = true;
+          initialOpenTopics[topicKey] = true;
+        } else {
+          if (initialOpenUnits[unitKey] === undefined) initialOpenUnits[unitKey] = false;
+          if (initialOpenTopics[topicKey] === undefined) initialOpenTopics[topicKey] = false;
+        }
+      });
+
+      setOpenUnits(initialOpenUnits);
+      setOpenTopics(initialOpenTopics);
+      setLoadingPage(false);
     };
 
     loadQuizzes();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const loadInsights = async () => {
@@ -161,45 +304,146 @@ export default function AdminQuizInsightsPage() {
     loadInsights();
   }, [quizId]);
 
+  const toggleUnit = (unitKey: string) => {
+    setOpenUnits((prev) => ({ ...prev, [unitKey]: !prev[unitKey] }));
+  };
+
+  const toggleTopic = (topicKey: string) => {
+    setOpenTopics((prev) => ({ ...prev, [topicKey]: !prev[topicKey] }));
+  };
+
   return (
     <div className="min-h-screen bg-yellow-300 text-black">
       <main className="max-w-6xl mx-auto px-6 py-10 space-y-6">
         <div className="bg-yellow-100 border border-black rounded-2xl p-6">
-          <h1 className="text-3xl font-bold mb-2">Quiz Insights</h1>
+          <h1 className="text-3xl font-bold mb-2">
+            {role === "teacher" ? "My Quiz Insights" : "Quiz Insights"}
+          </h1>
           <p className="text-sm opacity-80">
-            Review the most missed questions and see which students got which questions wrong.
+            {role === "teacher"
+              ? "Review insights for quizzes that belong to your assigned classes."
+              : "Review the most missed questions and see which students got which questions wrong."}
           </p>
 
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold mb-1">Select Quiz</label>
-              <select
-                value={quizId ?? ""}
-                onChange={(e) => setQuizId(Number(e.target.value))}
-                disabled={loadingQuizzes || quizzes.length === 0}
-                className="w-full p-3 rounded-lg border border-black bg-white"
-              >
-                {loadingQuizzes ? (
-                  <option>Loading quizzes...</option>
-                ) : quizzes.length === 0 ? (
-                  <option>No quizzes found</option>
-                ) : (
-                  quizzes.map((quiz) => (
-                    <option key={quiz.id} value={quiz.id}>
-                      {quiz.unit && quiz.title
-                        ? `${quiz.unit} • ${quiz.title}`
-                        : quiz.title || quiz.unit || `Quiz ${quiz.id}`}
-                    </option>
-                  ))
-                )}
-              </select>
+          <div className="mt-5 grid grid-cols-1 lg:grid-cols-[1.7fr_0.9fr] gap-4 items-start">
+            <div>
+              <label className="block text-sm font-bold mb-3">Available quizzes</label>
+
+              {loadingPage ? (
+                <div className="border border-black rounded-xl p-4 bg-white">
+                  Loading quizzes...
+                </div>
+              ) : quizzes.length === 0 ? (
+                <div className="border border-black rounded-xl p-4 bg-white">
+                  No quizzes found.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Object.entries(groupedQuizzes).map(([unitKey, topics]) => {
+                    const isUnitOpen = !!openUnits[unitKey];
+                    const unitTestCount = Object.values(topics).reduce(
+                      (sum, arr) => sum + arr.length,
+                      0
+                    );
+
+                    return (
+                      <div
+                        key={unitKey}
+                        className="border border-black rounded-xl overflow-hidden bg-yellow-50"
+                      >
+                        <button
+                          onClick={() => toggleUnit(unitKey)}
+                          className="w-full flex items-center justify-between px-4 py-4 text-left font-extrabold border-b border-black bg-white"
+                        >
+                          <span>
+                            {unitKey}{" "}
+                            <span className="text-xs opacity-70">
+                              ({unitTestCount} test{unitTestCount > 1 ? "s" : ""})
+                            </span>
+                          </span>
+                          <span>{isUnitOpen ? "−" : "+"}</span>
+                        </button>
+
+                        {isUnitOpen ? (
+                          <div className="p-4 space-y-3">
+                            {Object.entries(topics).map(([topicKeyRaw, tests]) => {
+                              const topicKey = `${unitKey}__${topicKeyRaw}`;
+                              const isTopicOpen = !!openTopics[topicKey];
+
+                              return (
+                                <div
+                                  key={topicKey}
+                                  className="border border-black rounded-lg overflow-hidden bg-white"
+                                >
+                                  <button
+                                    onClick={() => toggleTopic(topicKey)}
+                                    className="w-full flex items-center justify-between px-4 py-3 text-left font-bold border-b border-black bg-yellow-50"
+                                  >
+                                    <span>
+                                      {topicKeyRaw}{" "}
+                                      <span className="text-xs opacity-70">
+                                        ({tests.length} test{tests.length > 1 ? "s" : ""})
+                                      </span>
+                                    </span>
+                                    <span>{isTopicOpen ? "−" : "+"}</span>
+                                  </button>
+
+                                  {isTopicOpen ? (
+                                    <div className="p-3 space-y-2">
+                                      {tests.map((quiz) => {
+                                        const { testName } = getTopicAndTest(quiz);
+                                        const isSelected = quizId === quiz.id;
+
+                                        return (
+                                          <button
+                                            key={quiz.id}
+                                            onClick={() => setQuizId(quiz.id)}
+                                            className="block w-full text-left px-4 py-3 rounded-lg border border-black transition"
+                                            style={{
+                                              backgroundColor: isSelected ? "#facc15" : "white",
+                                            }}
+                                          >
+                                            <div className="font-semibold">{testName}</div>
+                                            <div className="text-xs opacity-70 mt-1">
+                                              Class: <b>{quiz.class_name ?? "-"}</b> • Level:{" "}
+                                              <b>{quiz.level ?? "-"}</b> • ID #{quiz.id}
+                                            </div>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            <div className="border border-black rounded-xl p-4 bg-yellow-50">
-              <div className="text-xs opacity-70">Selected Quiz</div>
-              <div className="font-bold break-words">
-                {selectedQuizLabel || "No quiz selected"}
+            <div className="space-y-4">
+              <div className="border border-black rounded-xl p-4 bg-yellow-50">
+                <div className="text-xs opacity-70">Selected Quiz</div>
+                <div className="font-bold break-words mt-1">
+                  {selectedQuizLabel || "No quiz selected"}
+                </div>
               </div>
+
+              {selectedQuiz ? (
+                <div className="border border-black rounded-xl p-4 bg-yellow-50">
+                  <div className="text-xs opacity-70">Quiz Details</div>
+                  <div className="text-sm mt-2">
+                    Class: <b>{selectedQuiz.class_name ?? "-"}</b>
+                  </div>
+                  <div className="text-sm mt-1">
+                    Level: <b>{selectedQuiz.level ?? "-"}</b>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -258,9 +502,7 @@ export default function AdminQuizInsightsPage() {
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div className="min-w-0">
-                          <p className="font-bold">
-                            #{index + 1} Most Missed
-                          </p>
+                          <p className="font-bold">#{index + 1} Most Missed</p>
                           <p className="mt-2 break-words">{q.question_text}</p>
                           <p className="mt-3 text-sm break-words">
                             <b>Correct Answer:</b> {getOptionText(q, q.correct_option)}
@@ -309,7 +551,8 @@ export default function AdminQuizInsightsPage() {
                           <div className="min-w-0">
                             <p className="font-bold text-lg break-words">{student.username}</p>
                             <p className="text-sm mt-1">
-                              Score: <b>{student.score}%</b> • Wrong Answers: <b>{student.wrong_count}</b>
+                              Score: <b>{student.score}%</b> • Wrong Answers:{" "}
+                              <b>{student.wrong_count}</b>
                             </p>
                           </div>
 
