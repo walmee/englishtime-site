@@ -26,6 +26,24 @@ type ResultRow = {
   quiz_id: number;
 };
 
+type LeaderboardRow = {
+  student_id: string;
+  quiz_id: number;
+  score: number;
+  created_at?: string | null;
+};
+
+type ProfileRow = {
+  id: string;
+  username: string | null;
+};
+
+type RankingRow = {
+  student_id: string;
+  username: string;
+  score: number;
+};
+
 type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
 type GroupedQuizMap = Record<string, Record<string, QuizRow[]>>;
 
@@ -33,6 +51,7 @@ export default function TakeTestPage() {
   const [msg, setMsg] = useState("");
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [loadingRanking, setLoadingRanking] = useState(false);
 
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [quizId, setQuizId] = useState<number | null>(null);
@@ -47,6 +66,7 @@ export default function TakeTestPage() {
   const [completedQuizIds, setCompletedQuizIds] = useState<number[]>([]);
   const [openUnits, setOpenUnits] = useState<Record<string, boolean>>({});
   const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
+  const [quizRanking, setQuizRanking] = useState<RankingRow[]>([]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -111,6 +131,12 @@ export default function TakeTestPage() {
     return grouped;
   }, [quizzes]);
 
+  const userRank = useMemo(() => {
+    if (!studentId || quizRanking.length === 0) return null;
+    const index = quizRanking.findIndex((row) => row.student_id === studentId);
+    return index >= 0 ? index + 1 : null;
+  }, [quizRanking, studentId]);
+
   const loadCompletedQuizzes = async (sid: string) => {
     const { data, error } = await supabase
       .from("leaderboard")
@@ -127,6 +153,63 @@ export default function TakeTestPage() {
       : [];
 
     setCompletedQuizIds(ids);
+  };
+
+  const loadQuizRanking = async (qid: number) => {
+    setLoadingRanking(true);
+
+    const { data, error } = await supabase
+      .from("leaderboard")
+      .select("student_id, quiz_id, score, created_at")
+      .eq("quiz_id", qid)
+      .order("score", { ascending: false })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setQuizRanking([]);
+      setLoadingRanking(false);
+      return;
+    }
+
+    const rows = Array.isArray(data) ? (data as LeaderboardRow[]) : [];
+
+    const firstByStudent = new Map<string, LeaderboardRow>();
+    rows.forEach((row) => {
+      if (!firstByStudent.has(row.student_id)) {
+        firstByStudent.set(row.student_id, row);
+      }
+    });
+
+    const dedupedRows = Array.from(firstByStudent.values());
+
+    const studentIds = dedupedRows.map((row) => row.student_id);
+
+    if (studentIds.length === 0) {
+      setQuizRanking([]);
+      setLoadingRanking(false);
+      return;
+    }
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .in("id", studentIds);
+
+    const profileMap: Record<string, string> = {};
+    ((profileData || []) as ProfileRow[]).forEach((profile) => {
+      profileMap[profile.id] = profile.username || "Student";
+    });
+
+    const ranking = dedupedRows
+      .map((row) => ({
+        student_id: row.student_id,
+        username: profileMap[row.student_id] || "Student",
+        score: Number(row.score) || 0,
+      }))
+      .sort((a, b) => b.score - a.score || a.username.localeCompare(b.username));
+
+    setQuizRanking(ranking);
+    setLoadingRanking(false);
   };
 
   const loadQuizzes = async () => {
@@ -225,6 +308,7 @@ export default function TakeTestPage() {
     setLoadingQuestions(true);
     setFinished(false);
     setAnswers({});
+    setQuizRanking([]);
 
     const { data, error } = await supabase
       .from("questions")
@@ -256,6 +340,7 @@ export default function TakeTestPage() {
       loadQuestions(quizId);
     } else {
       setQuestions([]);
+      setQuizRanking([]);
     }
   }, [quizId]);
 
@@ -324,6 +409,7 @@ export default function TakeTestPage() {
 
       setMsg(json?.message || "Completed successfully.");
       await loadCompletedQuizzes(studentId);
+      await loadQuizRanking(Number(quizId));
     } catch (e: any) {
       setMsg(e?.message || "Unexpected error");
     } finally {
@@ -683,6 +769,63 @@ export default function TakeTestPage() {
                   {answeredCount}/{questions.length}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-6 border border-black rounded-2xl p-5" style={{ backgroundColor: "var(--bg-soft)" }}>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <h4 className="text-xl font-bold">This Quiz Ranking</h4>
+                  <p className="text-sm opacity-80">
+                    See how students ranked in this test.
+                  </p>
+                </div>
+
+                {userRank ? (
+                  <div className="px-3 py-2 rounded-lg border border-black font-bold" style={{ backgroundColor: "var(--bg-card)" }}>
+                    Your Rank: #{userRank}
+                  </div>
+                ) : null}
+              </div>
+
+              {loadingRanking ? (
+                <div className="border border-dashed border-black rounded-lg p-6 text-center">
+                  Loading ranking...
+                </div>
+              ) : quizRanking.length === 0 ? (
+                <div className="border border-dashed border-black rounded-lg p-6 text-center">
+                  No ranking found for this quiz yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {quizRanking.map((row, index) => {
+                    const isCurrentUser = row.student_id === studentId;
+
+                    return (
+                      <div
+                        key={`${row.student_id}-${index}`}
+                        className="border border-black rounded-xl p-4"
+                        style={{
+                          backgroundColor: isCurrentUser ? "var(--bg-button)" : "var(--bg-card)",
+                          color: "var(--text-main)",
+                        }}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-bold text-lg break-words">
+                              #{index + 1} • {row.username}
+                              {isCurrentUser ? " (You)" : ""}
+                            </div>
+                          </div>
+
+                          <div className="px-3 py-2 rounded-lg border border-black font-bold">
+                            {row.score} pts
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-3">
