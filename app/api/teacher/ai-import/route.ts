@@ -73,11 +73,17 @@ export async function POST(req: Request) {
     }
 
     if (!openaiApiKey) {
-      return NextResponse.json(
-        { error: "Missing env: OPENAI_API_KEY" },
-        { status: 500 }
-      );
-    }
+  return NextResponse.json(
+    {
+      error: "Missing env: OPENAI_API_KEY",
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceKey: !!serviceKey,
+      hasOpenAiKey: !!openaiApiKey,
+      vercelEnv: process.env.VERCEL_ENV || null,
+    },
+    { status: 500 }
+  );
+}
 
     const authHeader = req.headers.get("authorization");
     const token =
