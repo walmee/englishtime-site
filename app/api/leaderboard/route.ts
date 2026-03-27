@@ -11,6 +11,18 @@ if (!supabaseUrl || !serviceRoleKey || !anonKey) {
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+type SubmittedAnswer = {
+  question_id: number;
+  selected_option: "A" | "B" | "C" | "D" | null;
+};
+
+type QuestionRow = {
+  id: number;
+  quiz_id: number;
+  correct_option: "A" | "B" | "C" | "D";
+  points: number | null;
+};
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -40,8 +52,7 @@ export async function POST(req: Request) {
 
     const student_id = user.id;
     const quiz_id = Number(body.quiz_id);
-    const score = Number(body.score || 0);
-    const answers = Array.isArray(body.answers) ? body.answers : [];
+    const rawAnswers = Array.isArray(body.answers) ? body.answers : [];
 
     if (!quiz_id) {
       return NextResponse.json(
@@ -49,6 +60,18 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    const answers: SubmittedAnswer[] = rawAnswers
+      .filter(
+        (a: any) =>
+          Number(a?.question_id) > 0 &&
+          (a?.selected_option === null ||
+            ["A", "B", "C", "D"].includes(String(a?.selected_option || "")))
+      )
+      .map((a: any) => ({
+        question_id: Number(a.question_id),
+        selected_option: a.selected_option ?? null,
+      }));
 
     const { data: existing, error: existingError } = await supabase
       .from("leaderboard")
@@ -73,6 +96,56 @@ export async function POST(req: Request) {
       });
     }
 
+    const { data: questionData, error: questionError } = await supabase
+      .from("questions")
+      .select("id, quiz_id, correct_option, points")
+      .eq("quiz_id", quiz_id)
+      .order("id", { ascending: true });
+
+    if (questionError) {
+      return NextResponse.json(
+        { error: questionError.message },
+        { status: 500 }
+      );
+    }
+
+    const questions = Array.isArray(questionData) ? (questionData as QuestionRow[]) : [];
+
+    if (questions.length === 0) {
+      return NextResponse.json(
+        { error: "No questions found for this quiz." },
+        { status: 400 }
+      );
+    }
+
+    const questionMap = new Map<number, QuestionRow>();
+    questions.forEach((q) => {
+      questionMap.set(Number(q.id), q);
+    });
+
+    let score = 0;
+
+    const answerRows = answers
+      .filter((a) => questionMap.has(a.question_id))
+      .map((a) => {
+        const question = questionMap.get(a.question_id)!;
+        const isCorrect =
+          a.selected_option !== null && a.selected_option === question.correct_option;
+
+        if (isCorrect) {
+          score += Number(question.points) || 0;
+        }
+
+        return {
+          student_id,
+          quiz_id,
+          question_id: question.id,
+          selected_option: a.selected_option,
+          correct_option: question.correct_option,
+          is_correct: isCorrect,
+        };
+      });
+
     const { error: insertLeaderboardError } = await supabase
       .from("leaderboard")
       .insert({
@@ -88,10 +161,30 @@ export async function POST(req: Request) {
       );
     }
 
+    if (answerRows.length > 0) {
+      const { error: insertAnswersError } = await supabase
+        .from("quiz_attempt_answers")
+        .insert(answerRows);
+
+      if (insertAnswersError) {
+        await supabase
+          .from("leaderboard")
+          .delete()
+          .eq("student_id", student_id)
+          .eq("quiz_id", quiz_id);
+
+        return NextResponse.json(
+          { error: insertAnswersError.message },
+          { status: 500 }
+        );
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       message: "Score saved successfully.",
       locked: false,
+      score,
     });
   } catch (error: any) {
     return NextResponse.json(
