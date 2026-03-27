@@ -10,59 +10,21 @@ type QuizRow = {
   unit: string | null;
 };
 
-type QuestionRow = {
-  id: number;
-  quiz_id: number;
-  question_text: string;
-  option_a: string;
-  option_b: string;
-  option_c: string;
-  option_d: string;
-  points: number;
-};
-
 type ResultRow = {
   quiz_id: number;
 };
 
-type RankingRow = {
-  student_id: string;
-  username: string;
-  score: number;
-};
-
-type ReviewAnswerRow = {
-  question_id: number;
-  selected_option: "A" | "B" | "C" | "D" | null;
-  correct_option: "A" | "B" | "C" | "D";
-  is_correct: boolean;
-};
-
-type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
 type GroupedQuizMap = Record<string, Record<string, QuizRow[]>>;
 
 export default function TakeTestPage() {
   const [msg, setMsg] = useState("");
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
-  const [loadingRanking, setLoadingRanking] = useState(false);
-
-  const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
-  const [quizId, setQuizId] = useState<number | null>(null);
-
-  const [questions, setQuestions] = useState<QuestionRow[]>([]);
-  const [answers, setAnswers] = useState<AnswerMap>({});
-  const [reviewAnswers, setReviewAnswers] = useState<Record<number, ReviewAnswerRow>>({});
-
-  const [submitting, setSubmitting] = useState(false);
-  const [finished, setFinished] = useState(false);
 
   const [studentId, setStudentId] = useState("");
+  const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [completedQuizIds, setCompletedQuizIds] = useState<number[]>([]);
   const [openUnits, setOpenUnits] = useState<Record<string, boolean>>({});
   const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
-  const [quizRanking, setQuizRanking] = useState<RankingRow[]>([]);
-  const [serverScore, setServerScore] = useState<number | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -77,23 +39,6 @@ export default function TakeTestPage() {
 
     loadUser();
   }, []);
-
-  const totalPoints = useMemo(() => {
-    return questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
-  }, [questions]);
-
-  const answeredCount = useMemo(() => {
-    return Object.keys(answers).length;
-  }, [answers]);
-
-  const selectedQuiz = useMemo(() => {
-    return quizzes.find((q) => q.id === quizId) || null;
-  }, [quizzes, quizId]);
-
-  const getQuizLabel = (quiz: QuizRow) => {
-    if (quiz.unit && quiz.title) return `${quiz.unit} • ${quiz.title}`;
-    return quiz.title || quiz.unit || "Quiz";
-  };
 
   const getTopicAndTest = (quiz: QuizRow) => {
     const parts = quiz.title.split(" - ");
@@ -118,12 +63,6 @@ export default function TakeTestPage() {
     return grouped;
   }, [quizzes]);
 
-  const userRank = useMemo(() => {
-    if (!studentId || quizRanking.length === 0) return null;
-    const index = quizRanking.findIndex((row) => row.student_id === studentId);
-    return index >= 0 ? index + 1 : null;
-  }, [quizRanking, studentId]);
-
   const loadCompletedQuizzes = async (sid: string) => {
     const { data, error } = await supabase
       .from("leaderboard")
@@ -140,29 +79,6 @@ export default function TakeTestPage() {
       : [];
 
     setCompletedQuizIds(ids);
-  };
-
-  const loadQuizRanking = async (qid: number) => {
-    setLoadingRanking(true);
-
-    try {
-      const res = await fetch(
-        `/api/quiz-ranking?quiz_id=${encodeURIComponent(String(qid))}`
-      );
-      const text = await res.text();
-      const json = text ? JSON.parse(text) : {};
-
-      if (!res.ok) {
-        setQuizRanking([]);
-        return;
-      }
-
-      setQuizRanking(Array.isArray(json?.ranking) ? json.ranking : []);
-    } catch {
-      setQuizRanking([]);
-    } finally {
-      setLoadingRanking(false);
-    }
   };
 
   const loadQuizzes = async () => {
@@ -226,12 +142,6 @@ export default function TakeTestPage() {
     const list = Array.isArray(data) ? (data as QuizRow[]) : [];
     setQuizzes(list);
 
-    if (list.length > 0) {
-      setQuizId(list[0].id);
-    } else {
-      setQuizId(null);
-    }
-
     const initialOpenUnits: Record<string, boolean> = {};
     const initialOpenTopics: Record<string, boolean> = {};
 
@@ -256,51 +166,11 @@ export default function TakeTestPage() {
     setLoadingQuizzes(false);
   };
 
-  const loadQuestions = async (qid: number) => {
-    setMsg("");
-    setLoadingQuestions(true);
-    setFinished(false);
-    setAnswers({});
-    setQuizRanking([]);
-    setServerScore(null);
-    setReviewAnswers({});
-
-    try {
-      const res = await fetch(`/api/quiz/${encodeURIComponent(String(qid))}`);
-      const text = await res.text();
-      const json = text ? JSON.parse(text) : {};
-
-      if (!res.ok) {
-        setMsg(json?.error || "Questions could not be loaded.");
-        setQuestions([]);
-        return;
-      }
-
-      setQuestions(Array.isArray(json?.questions) ? json.questions : []);
-    } catch (e: any) {
-      setMsg(e?.message || "Questions could not be loaded.");
-      setQuestions([]);
-    } finally {
-      setLoadingQuestions(false);
-    }
-  };
-
   useEffect(() => {
     if (studentId) {
       loadQuizzes();
     }
   }, [studentId]);
-
-  useEffect(() => {
-    if (quizId) {
-      loadQuestions(quizId);
-    } else {
-      setQuestions([]);
-      setQuizRanking([]);
-      setServerScore(null);
-      setReviewAnswers({});
-    }
-  }, [quizId]);
 
   const toggleUnit = (unitKey: string) => {
     setOpenUnits((prev) => ({ ...prev, [unitKey]: !prev[unitKey] }));
@@ -310,100 +180,6 @@ export default function TakeTestPage() {
     setOpenTopics((prev) => ({ ...prev, [topicKey]: !prev[topicKey] }));
   };
 
-  const pick = (questionId: number, option: "A" | "B" | "C" | "D") => {
-    if (finished) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: option }));
-  };
-
-  const submitTest = async () => {
-    setMsg("");
-
-    if (!quizId) {
-      setMsg("Please select a quiz.");
-      return;
-    }
-
-    if (questions.length === 0) {
-      setMsg("This quiz has no questions yet.");
-      return;
-    }
-
-    if (!studentId) {
-      setMsg("Student ID not found. Please login again.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      setFinished(true);
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const accessToken = session?.access_token;
-
-      if (!accessToken) {
-        setMsg("Session not found. Please login again.");
-        setFinished(false);
-        return;
-      }
-
-      const submittedAnswers = questions.map((q) => ({
-        question_id: q.id,
-        selected_option: answers[q.id] ?? null,
-      }));
-
-      const res = await fetch("/api/leaderboard", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          quiz_id: Number(quizId),
-          answers: submittedAnswers,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        setMsg(json?.error || "Leaderboard save failed.");
-        setFinished(false);
-        return;
-      }
-
-      const incomingAnswers: ReviewAnswerRow[] = Array.isArray(json?.answers) ? json.answers : [];
-      const reviewMap: Record<number, ReviewAnswerRow> = {};
-      incomingAnswers.forEach((item) => {
-        reviewMap[item.question_id] = item;
-      });
-
-      setReviewAnswers(reviewMap);
-      setServerScore(typeof json?.score === "number" ? json.score : 0);
-      setMsg(json?.message || "Completed successfully.");
-      await loadCompletedQuizzes(studentId);
-      await loadQuizRanking(Number(quizId));
-    } catch (e: any) {
-      setMsg(e?.message || "Unexpected error");
-      setFinished(false);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const resetForRetry = () => {
-    setFinished(false);
-    setAnswers({});
-    setMsg("");
-    setServerScore(null);
-    setReviewAnswers({});
-  };
-
-  const selectedQuizDetails = selectedQuiz ? getTopicAndTest(selectedQuiz) : null;
-  const selectedQuizCompleted = selectedQuiz ? completedQuizIds.includes(selectedQuiz.id) : false;
   const totalQuizCount = quizzes.length;
 
   return (
@@ -418,7 +194,7 @@ export default function TakeTestPage() {
         >
           <h2 className="text-2xl font-bold mb-2">Take a Test</h2>
           <p className="text-sm opacity-90">
-            Choose your unit, topic, and test. Completed tests are marked, but you can still retake them.
+            Choose your unit, topic, and test. Each test opens on its own page.
           </p>
 
           {msg ? (
@@ -505,19 +281,15 @@ export default function TakeTestPage() {
                                     <div className="p-3 space-y-2">
                                       {tests.map((q) => {
                                         const { testName } = getTopicAndTest(q);
-                                        const isSelected = quizId === q.id;
                                         const isCompleted = completedQuizIds.includes(q.id);
 
                                         return (
-                                          <button
+                                          <Link
                                             key={q.id}
-                                            onClick={() => setQuizId(q.id)}
-                                            disabled={submitting}
+                                            href={`/take-test/${q.id}`}
                                             className="block w-full text-left px-4 py-3 rounded-lg border border-black transition"
                                             style={{
-                                              backgroundColor: isSelected
-                                                ? "var(--bg-button)"
-                                                : "var(--bg-card)",
+                                              backgroundColor: "var(--bg-card)",
                                               color: "var(--text-main)",
                                             }}
                                           >
@@ -533,7 +305,7 @@ export default function TakeTestPage() {
                                                 </span>
                                               ) : null}
                                             </div>
-                                          </button>
+                                          </Link>
                                         );
                                       })}
                                     </div>
@@ -558,7 +330,7 @@ export default function TakeTestPage() {
                 <div className="text-xs opacity-80">Quiz browser</div>
                 <div className="font-bold mt-1">{totalQuizCount} tests available</div>
                 <div className="text-xs opacity-80 mt-2">
-                  Completed tests are locked on the leaderboard, but you can still practice them again.
+                  Completed tests stay marked. You can still open and practice them again.
                 </div>
               </div>
 
@@ -566,276 +338,17 @@ export default function TakeTestPage() {
                 className="border border-black rounded-xl p-4"
                 style={{ backgroundColor: "var(--bg-soft)" }}
               >
-                <div className="text-xs opacity-80">Selected test</div>
-
-                {selectedQuiz ? (
-                  <>
-                    <div className="font-bold mt-1">{selectedQuiz.unit || "No Unit"}</div>
-                    <div className="text-sm mt-2">
-                      Topic: <b>{selectedQuizDetails?.topic || "-"}</b>
-                    </div>
-                    <div className="text-sm mt-1">
-                      Test: <b>{selectedQuizDetails?.testName || "-"}</b>
-                    </div>
-                    <div className="text-sm mt-1">
-                      Status:{" "}
-                      <b>{selectedQuizCompleted ? "Completed before" : "New test"}</b>
-                    </div>
-                    <div className="text-sm mt-1">
-                      Questions: <b>{questions.length}</b>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-sm mt-2 opacity-80">No test selected yet.</div>
-                )}
-              </div>
-
-              <div
-                className="border border-black rounded-xl p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <div className="text-xs opacity-80">Progress</div>
-                <div className="font-bold mt-1">
-                  {answeredCount}/{questions.length} answered
+                <div className="text-xs opacity-80">How it works</div>
+                <div className="text-sm mt-2">
+                  Select a test from the list to open its own solving page.
                 </div>
-                <div className="text-xs opacity-80 mt-2">Total points: {totalPoints}</div>
+                <div className="text-sm mt-2">
+                  After submitting, you will see your result and that test&apos;s mini leaderboard there.
+                </div>
               </div>
             </div>
           </div>
         </div>
-
-        <div
-          className="border border-black rounded-2xl p-6"
-          style={{ backgroundColor: "var(--bg-card)" }}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-xl font-bold">Questions</h3>
-              {selectedQuiz ? (
-                <p className="text-sm opacity-80 mt-1 break-words">
-                  {getQuizLabel(selectedQuiz)}
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          {loadingQuestions ? (
-            <div className="border border-dashed border-black rounded-lg p-8 text-center">
-              Loading questions...
-            </div>
-          ) : questions.length === 0 ? (
-            <div className="border border-dashed border-black rounded-lg p-8 text-center">
-              No questions found for this quiz.
-            </div>
-          ) : (
-            <>
-              <div className="space-y-4">
-                {questions.map((q, idx) => {
-                  const picked = answers[q.id];
-                  const review = reviewAnswers[q.id];
-                  const isCorrect = review?.is_correct ?? false;
-
-                  return (
-                    <div
-                      key={q.id}
-                      className="border border-black rounded-xl p-4"
-                      style={{ backgroundColor: "var(--bg-soft)" }}
-                    >
-                      <div className="font-bold">
-                        Q{idx + 1}. ({q.points} pts)
-                      </div>
-                      <div className="mt-1 break-words">{q.question_text}</div>
-
-                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {(
-                          [
-                            ["A", q.option_a],
-                            ["B", q.option_b],
-                            ["C", q.option_c],
-                            ["D", q.option_d],
-                          ] as const
-                        ).map(([opt, text]) => {
-                          const selected = picked === opt;
-
-                          return (
-                            <button
-                              key={opt}
-                              onClick={() => pick(q.id, opt)}
-                              disabled={finished}
-                              className={[
-                                "text-left px-3 py-3 rounded-lg border border-black transition break-words",
-                                finished ? "opacity-80 cursor-default" : "",
-                              ].join(" ")}
-                              style={{
-                                backgroundColor: selected ? "var(--bg-button)" : "var(--bg-card)",
-                                color: "var(--text-main)",
-                              }}
-                            >
-                              <b>{opt})</b> {text}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {finished ? (
-                        <div className="mt-3 text-sm font-bold break-words">
-                          Your answer: {review?.selected_option ?? "-"} • Correct: {review?.correct_option ?? "-"} •{" "}
-                          {review?.selected_option
-                            ? isCorrect
-                              ? "✅ Correct"
-                              : "❌ Wrong"
-                            : "❌ Not answered"}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 flex justify-center">
-                {!finished ? (
-                  <button
-                    onClick={submitTest}
-                    disabled={submitting || loadingQuestions || questions.length === 0}
-                    className="px-6 py-3 rounded-xl border border-black font-bold transition disabled:opacity-60"
-                    style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
-                  >
-                    {submitting ? "Submitting..." : "Submit Test"}
-                  </button>
-                ) : (
-                  <button
-                    onClick={resetForRetry}
-                    className="px-6 py-3 rounded-xl border border-black transition font-bold"
-                    style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
-                  >
-                    Try Again
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {finished ? (
-          <div
-            className="border border-black rounded-2xl p-6"
-            style={{ backgroundColor: "var(--bg-card)" }}
-          >
-            <h3 className="text-xl font-bold mb-2">Result</h3>
-            {selectedQuiz ? (
-              <p className="text-sm mb-2 break-words">{getQuizLabel(selectedQuiz)}</p>
-            ) : null}
-            <p className="text-sm mb-4">
-              Score is calculated on the server and saved to leaderboard after you submit this quiz.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div
-                className="border border-black rounded-xl p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <div className="text-xs opacity-80">Points</div>
-                <div className="text-2xl font-extrabold">{serverScore ?? 0}</div>
-              </div>
-              <div
-                className="border border-black rounded-xl p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <div className="text-xs opacity-80">Total</div>
-                <div className="text-2xl font-extrabold">{totalPoints}</div>
-              </div>
-              <div
-                className="border border-black rounded-xl p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <div className="text-xs opacity-80">Answered</div>
-                <div className="text-2xl font-extrabold">
-                  {answeredCount}/{questions.length}
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="mt-6 border border-black rounded-2xl p-5"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div>
-                  <h4 className="text-xl font-bold">This Quiz Ranking</h4>
-                  <p className="text-sm opacity-80">
-                    See how students ranked in this test.
-                  </p>
-                </div>
-
-                {userRank ? (
-                  <div
-                    className="px-3 py-2 rounded-lg border border-black font-bold"
-                    style={{ backgroundColor: "var(--bg-card)" }}
-                  >
-                    Your Rank: #{userRank}
-                  </div>
-                ) : null}
-              </div>
-
-              {loadingRanking ? (
-                <div className="border border-dashed border-black rounded-lg p-6 text-center">
-                  Loading ranking...
-                </div>
-              ) : quizRanking.length === 0 ? (
-                <div className="border border-dashed border-black rounded-lg p-6 text-center">
-                  No ranking found for this quiz yet.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {quizRanking.map((row, index) => {
-                    const isCurrentUser = row.student_id === studentId;
-
-                    return (
-                      <div
-                        key={`${row.student_id}-${index}`}
-                        className="border border-black rounded-xl p-4"
-                        style={{
-                          backgroundColor: isCurrentUser ? "var(--bg-button)" : "var(--bg-card)",
-                          color: "var(--text-main)",
-                        }}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="font-bold text-lg break-words">
-                              #{index + 1} • {row.username}
-                              {isCurrentUser ? " (You)" : ""}
-                            </div>
-                          </div>
-
-                          <div className="px-3 py-2 rounded-lg border border-black font-bold">
-                            {row.score} pts
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/leaderboard"
-                className="px-4 py-2 rounded-lg border border-black transition font-bold"
-                style={{ backgroundColor: "var(--bg-button)", color: "var(--text-main)" }}
-              >
-                View Leaderboard →
-              </Link>
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 rounded-lg border border-black transition font-bold"
-                style={{ backgroundColor: "var(--bg-soft)", color: "var(--text-main)" }}
-              >
-                Back to Dashboard
-              </Link>
-            </div>
-          </div>
-        ) : null}
       </main>
     </div>
   );
