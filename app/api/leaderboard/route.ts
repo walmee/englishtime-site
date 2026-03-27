@@ -1,10 +1,12 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !serviceRoleKey) {
+if (!supabaseUrl || !serviceRoleKey || !anonKey) {
   throw new Error("Missing Supabase environment variables for leaderboard API.");
 }
 
@@ -20,19 +22,42 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const student_id = String(body.student_id || "").trim();
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("sb-access-token")?.value;
+
+    if (!accessToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    });
+
+    const {
+      data: { user },
+      error: userError,
+    } = await authClient.auth.getUser();
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const student_id = user.id;
     const quiz_id = Number(body.quiz_id);
     const score = Number(body.score || 0);
     const answers: SubmittedAnswer[] = Array.isArray(body.answers) ? body.answers : [];
 
-    if (!student_id || !quiz_id) {
+    if (!quiz_id) {
       return NextResponse.json(
-        { error: "student_id and quiz_id are required" },
+        { error: "quiz_id is required" },
         { status: 400 }
       );
     }
 
-    // 1) Aynı öğrenci aynı quizi daha önce çözmüş mü?
     const { data: existing, error: existingError } = await supabase
       .from("leaderboard")
       .select("student_id, quiz_id, score")
@@ -47,7 +72,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2) Daha önce çözdüyse ilk skor korunur, cevaplar tekrar yazılmaz
     if (existing) {
       return NextResponse.json({
         ok: true,
@@ -57,7 +81,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3) İlk skor leaderboard'a yazılır
     const { error: insertLeaderboardError } = await supabase
       .from("leaderboard")
       .insert({
@@ -73,7 +96,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4) İlk denemenin cevapları kaydedilir
     if (answers.length > 0) {
       const answerRows = answers
         .filter(
@@ -99,7 +121,6 @@ export async function POST(req: Request) {
           .insert(answerRows);
 
         if (insertAnswersError) {
-          // rollback: leaderboard kaydı da geri alınsın
           await supabase
             .from("leaderboard")
             .delete()
