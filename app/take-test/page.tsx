@@ -380,6 +380,18 @@ export default function TakeTestPage() {
     try {
       setFinished(true);
 
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        setMsg("Session not found. Please login again.");
+        setFinished(false);
+        return;
+      }
+
       const score = chosenPoints;
       const submittedAnswers = questions.map((q) => ({
         question_id: q.id,
@@ -391,9 +403,9 @@ export default function TakeTestPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          student_id: studentId,
           quiz_id: Number(quizId),
           score: Number(score),
           answers: submittedAnswers,
@@ -404,6 +416,7 @@ export default function TakeTestPage() {
 
       if (!res.ok) {
         setMsg(json?.error || "Leaderboard save failed.");
+        setFinished(false);
         return;
       }
 
@@ -412,6 +425,7 @@ export default function TakeTestPage() {
       await loadQuizRanking(Number(quizId));
     } catch (e: any) {
       setMsg(e?.message || "Unexpected error");
+      setFinished(false);
     } finally {
       setSubmitting(false);
     }
@@ -771,7 +785,10 @@ export default function TakeTestPage() {
               </div>
             </div>
 
-            <div className="mt-6 border border-black rounded-2xl p-5" style={{ backgroundColor: "var(--bg-soft)" }}>
+            <div
+              className="mt-6 border border-black rounded-2xl p-5"
+              style={{ backgroundColor: "var(--bg-soft)" }}
+            >
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <h4 className="text-xl font-bold">This Quiz Ranking</h4>
@@ -781,7 +798,10 @@ export default function TakeTestPage() {
                 </div>
 
                 {userRank ? (
-                  <div className="px-3 py-2 rounded-lg border border-black font-bold" style={{ backgroundColor: "var(--bg-card)" }}>
+                  <div
+                    className="px-3 py-2 rounded-lg border border-black font-bold"
+                    style={{ backgroundColor: "var(--bg-card)" }}
+                  >
                     Your Rank: #{userRank}
                   </div>
                 ) : null}
