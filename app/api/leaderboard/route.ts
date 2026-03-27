@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
@@ -12,27 +11,20 @@ if (!supabaseUrl || !serviceRoleKey || !anonKey) {
 
 const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-type SubmittedAnswer = {
-  question_id: number;
-  selected_option: "A" | "B" | "C" | "D" | null;
-  correct_option: "A" | "B" | "C" | "D";
-};
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const cookieStore = await cookies();
-    const accessToken = cookieStore.get("sb-access-token")?.value;
+    const authHeader = req.headers.get("authorization");
 
-    if (!accessToken) {
+    if (!authHeader) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const authClient = createClient(supabaseUrl, anonKey, {
       global: {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: authHeader,
         },
       },
     });
@@ -49,7 +41,7 @@ export async function POST(req: Request) {
     const student_id = user.id;
     const quiz_id = Number(body.quiz_id);
     const score = Number(body.score || 0);
-    const answers: SubmittedAnswer[] = Array.isArray(body.answers) ? body.answers : [];
+    const answers = Array.isArray(body.answers) ? body.answers : [];
 
     if (!quiz_id) {
       return NextResponse.json(
@@ -96,48 +88,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (answers.length > 0) {
-      const answerRows = answers
-        .filter(
-          (a) =>
-            Number(a?.question_id) > 0 &&
-            ["A", "B", "C", "D"].includes(String(a?.correct_option || "")) &&
-            (a?.selected_option === null ||
-              ["A", "B", "C", "D"].includes(String(a?.selected_option || "")))
-        )
-        .map((a) => ({
-          student_id,
-          quiz_id,
-          question_id: Number(a.question_id),
-          selected_option: a.selected_option,
-          correct_option: a.correct_option,
-          is_correct:
-            a.selected_option !== null && a.selected_option === a.correct_option,
-        }));
-
-      if (answerRows.length > 0) {
-        const { error: insertAnswersError } = await supabase
-          .from("quiz_attempt_answers")
-          .insert(answerRows);
-
-        if (insertAnswersError) {
-          await supabase
-            .from("leaderboard")
-            .delete()
-            .eq("student_id", student_id)
-            .eq("quiz_id", quiz_id);
-
-          return NextResponse.json(
-            { error: insertAnswersError.message },
-            { status: 500 }
-          );
-        }
-      }
-    }
-
     return NextResponse.json({
       ok: true,
-      message: "First score and answers saved successfully.",
+      message: "Score saved successfully.",
       locked: false,
     });
   } catch (error: any) {
