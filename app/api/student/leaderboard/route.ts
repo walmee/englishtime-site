@@ -1,214 +1,106 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
-type LeaderboardBaseRow = {
-  student_id: string;
-  quiz_id: number;
-  score: number;
-  profiles: {
-    username: string | null;
-    level: string | null;
-    role?: string | null;
-  } | null;
-};
+const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-type ClassStudentRow = {
-  class_id: number;
-  student_id: string;
-};
-
-type ClassRow = {
-  id: number;
-  class_name: string;
-};
-
-type ProfileRow = {
-  id: string;
-  username: string | null;
-  level: string | null;
-  role: string | null;
-};
-
-type LeaderboardEntry = {
-  student_id: string;
-  username: string;
-  level: string;
-  total_score: number;
-  quizzes_count: number;
-};
-
-function groupLeaderboard(rows: LeaderboardBaseRow[]): LeaderboardEntry[] {
-  const grouped = new Map<string, LeaderboardEntry>();
-
-  for (const row of rows) {
-    if (!grouped.has(row.student_id)) {
-      grouped.set(row.student_id, {
-        student_id: row.student_id,
-        username: row.profiles?.username || "Unknown Student",
-        level: row.profiles?.level || "-",
-        total_score: 0,
-        quizzes_count: 0,
-      });
-    }
-
-    const current = grouped.get(row.student_id)!;
-    current.total_score += Number(row.score) || 0;
-    current.quizzes_count += 1;
-  }
-
-  return Array.from(grouped.values()).sort(
-    (a, b) => b.total_score - a.total_score
-  );
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const { searchParams } = new URL(req.url);
+    const student_id = searchParams.get("student_id");
 
-    if (!supabaseUrl || !serviceKey) {
+    if (!student_id) {
       return NextResponse.json(
-        { error: "Missing env: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" },
-        { status: 500 }
+        { error: "student_id is required" },
+        { status: 400 }
       );
     }
 
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false },
-    });
-
-    const studentId = String(
-      req.nextUrl.searchParams.get("student_id") || ""
-    ).trim();
-
-    const { data: rawLeaderboard, error: leaderboardError } = await supabase
-      .from("leaderboard")
-      .select(`
-        student_id,
-        quiz_id,
-        score,
-        profiles:student_id (
-          username,
-          level,
-          role
-        )
-      `)
-      .order("score", { ascending: false });
-
-    if (leaderboardError) {
-      return NextResponse.json(
-        { error: leaderboardError.message },
-        { status: 500 }
-      );
-    }
-
-    const allRows = (rawLeaderboard || []) as unknown as LeaderboardBaseRow[];
-    const overallLeaderboard = groupLeaderboard(allRows);
-
-    if (!studentId) {
-      return NextResponse.json(
-        {
-          overallLeaderboard,
-          classLeaderboard: overallLeaderboard,
-          levelLeaderboard: overallLeaderboard,
-          currentClassName: "All Classes",
-          currentLevel: "All Levels",
-        },
-        { status: 200 }
-      );
-    }
-
-    const { data: myProfile, error: myProfileError } = await supabase
+    // 👇 kullanıcının class + level bilgisi
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("id, username, level, role")
-      .eq("id", studentId)
+      .select("class_name, level")
+      .eq("id", student_id)
       .single();
 
-    if (myProfileError || !myProfile) {
-      return NextResponse.json(
-        {
-          overallLeaderboard,
-          classLeaderboard: overallLeaderboard,
-          levelLeaderboard: overallLeaderboard,
-          currentClassName: "All Classes",
-          currentLevel: "All Levels",
-        },
-        { status: 200 }
-      );
-    }
+    const currentClassName = profile?.class_name || null;
+    const currentLevel = profile?.level || null;
 
-    const me = myProfile as ProfileRow;
-    const myLevel = me.level || null;
-    const myRole = me.role || "student";
+    // 👇 leaderboard ham veri
+    const { data: leaderboardData } = await supabase
+      .from("leaderboard")
+      .select("student_id, quiz_id, score");
 
-    if (myRole === "admin" || myRole === "teacher") {
-      return NextResponse.json(
-        {
-          overallLeaderboard,
-          classLeaderboard: overallLeaderboard,
-          levelLeaderboard: overallLeaderboard,
-          currentClassName: "All Classes",
-          currentLevel: "All Levels",
-        },
-        { status: 200 }
-      );
-    }
+    const map = new Map<
+      string,
+      { total_score: number; quizzes: Set<number> }
+    >();
 
-    const { data: myClassRelation } = await supabase
-      .from("class_students")
-      .select("class_id, student_id")
-      .eq("student_id", studentId)
-      .maybeSingle();
+    leaderboardData?.forEach((row) => {
+      if (!map.has(row.student_id)) {
+        map.set(row.student_id, {
+          total_score: 0,
+          quizzes: new Set(),
+        });
+      }
 
-    let currentClassName: string | null = null;
-    let classLeaderboard: LeaderboardEntry[] = [];
+      const entry = map.get(row.student_id)!;
+      entry.total_score += Number(row.score) || 0;
+      entry.quizzes.add(row.quiz_id);
+    });
 
-    if (myClassRelation?.class_id) {
-      const myClassId = myClassRelation.class_id as number;
+    const studentIds = Array.from(map.keys());
 
-      const { data: classInfo } = await supabase
-        .from("classes")
-        .select("id, class_name")
-        .eq("id", myClassId)
-        .single();
+    // 👇 BURASI KRİTİK (service role ile username alıyoruz)
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, level, class_name")
+      .in("id", studentIds);
 
-      currentClassName = (classInfo as ClassRow | null)?.class_name || null;
+    const profileMap: Record<string, any> = {};
+    profiles?.forEach((p) => {
+      profileMap[p.id] = p;
+    });
 
-      const { data: classStudentsData } = await supabase
-        .from("class_students")
-        .select("class_id, student_id")
-        .eq("class_id", myClassId);
+    const allRows = studentIds.map((id) => {
+      const entry = map.get(id)!;
+      const p = profileMap[id];
 
-      const classStudents = (classStudentsData || []) as ClassStudentRow[];
-      const classStudentIds = classStudents.map((r) => r.student_id);
+      return {
+        student_id: id,
+        username: p?.username || "Student",
+        level: p?.level || "Unknown",
+        class_name: p?.class_name || "Unknown",
+        total_score: entry.total_score,
+        quizzes_count: entry.quizzes.size,
+      };
+    });
 
-      const classRows = allRows.filter((row) =>
-        classStudentIds.includes(row.student_id)
-      );
+    const sortFn = (a: any, b: any) =>
+      b.total_score - a.total_score || a.username.localeCompare(b.username);
 
-      classLeaderboard = groupLeaderboard(classRows);
-    }
+    const overallLeaderboard = [...allRows].sort(sortFn);
 
-    const levelRows = allRows.filter(
-      (row) => row.profiles?.level && row.profiles.level === myLevel
-    );
-    const levelLeaderboard = groupLeaderboard(levelRows);
+    const classLeaderboard = currentClassName
+      ? allRows.filter((r) => r.class_name === currentClassName).sort(sortFn)
+      : [];
 
-    return NextResponse.json(
-      {
-        overallLeaderboard,
-        classLeaderboard,
-        levelLeaderboard,
-        currentClassName,
-        currentLevel: myLevel,
-      },
-      { status: 200 }
-    );
+    const levelLeaderboard = currentLevel
+      ? allRows.filter((r) => r.level === currentLevel).sort(sortFn)
+      : [];
+
+    return NextResponse.json({
+      classLeaderboard,
+      levelLeaderboard,
+      overallLeaderboard,
+      currentClassName,
+      currentLevel,
+    });
   } catch (e: any) {
     return NextResponse.json(
-      { error: e?.message || "Unexpected error" },
+      { error: e.message },
       { status: 500 }
     );
   }
