@@ -90,31 +90,10 @@ export default function QuizSolvePage() {
     return quiz.title || quiz.unit || "Quiz";
   };
 
-  const loadQuizInfo = async () => {
+  const loadQuizPageData = async () => {
     if (!quizId) {
       setMsg("Invalid quiz.");
       setQuizInfo(null);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("quizzes")
-      .select("id, title, unit")
-      .eq("id", quizId)
-      .maybeSingle();
-
-    if (error || !data) {
-      setMsg("Quiz not found.");
-      setQuizInfo(null);
-      return;
-    }
-
-    setQuizInfo(data as QuizRow);
-  };
-
-  const loadQuestions = async () => {
-    if (!quizId) {
-      setMsg("Invalid quiz.");
       setQuestions([]);
       return;
     }
@@ -125,14 +104,17 @@ export default function QuizSolvePage() {
       const json = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        setMsg(json?.error || "Failed to load questions.");
+        setMsg(json?.error || "Quiz could not be loaded.");
+        setQuizInfo(null);
         setQuestions([]);
         return;
       }
 
+      setQuizInfo(json?.quiz || null);
       setQuestions(Array.isArray(json?.questions) ? json.questions : []);
     } catch (e: any) {
-      setMsg(e?.message || "Failed to load questions.");
+      setMsg(e?.message || "Quiz could not be loaded.");
+      setQuizInfo(null);
       setQuestions([]);
     }
   };
@@ -170,8 +152,7 @@ export default function QuizSolvePage() {
       setQuizRanking([]);
       setServerScore(null);
 
-      await loadQuizInfo();
-      await loadQuestions();
+      await loadQuizPageData();
 
       setLoadingPage(false);
     };
@@ -314,12 +295,12 @@ export default function QuizSolvePage() {
             </Link>
           </div>
 
-          {msg ? (
+          {msg && !quizInfo && (
             <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4">
               <p className="font-bold">Notice</p>
               <p className="text-sm break-words">{msg}</p>
             </div>
-          ) : null}
+          )}
 
           <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-2xl border bg-neutral-50 p-4">
@@ -348,6 +329,13 @@ export default function QuizSolvePage() {
               <p className="text-sm opacity-70 mt-1">{getQuizLabel(quizInfo)}</p>
             </div>
           </div>
+
+          {msg && quizInfo && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
+              <p className="font-bold">Notice</p>
+              <p className="text-sm break-words">{msg}</p>
+            </div>
+          )}
 
           {questions.length === 0 ? (
             <div className="rounded-2xl border border-dashed p-8 text-center">
