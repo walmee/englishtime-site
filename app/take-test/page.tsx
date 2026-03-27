@@ -184,42 +184,33 @@ export default function TakeTestPage() {
 
   return (
     <div
-      className="min-h-screen w-full overflow-x-hidden text-black"
-      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+      className="min-h-screen w-full overflow-x-hidden"
+      style={{ backgroundColor: "#f5f5f5", color: "#111111" }}
     >
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
-        <div
-          className="border border-black rounded-2xl p-6"
-          style={{ backgroundColor: "var(--bg-card)" }}
-        >
+        <div className="rounded-3xl border bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-bold mb-2">Take a Test</h2>
-          <p className="text-sm opacity-90">
+          <p className="text-sm opacity-80">
             Choose your unit, topic, and test. Each test opens on its own page.
           </p>
 
           {msg ? (
-            <div className="mt-4 bg-red-100 border border-black rounded-xl p-4">
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4">
               <p className="font-bold">Notice</p>
               <p className="text-sm break-words">{msg}</p>
             </div>
           ) : null}
 
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1.7fr_0.9fr] gap-4 items-start">
+          <div className="mt-5 grid grid-cols-1 lg:grid-cols-[1.7fr_0.9fr] gap-4 items-start">
             <div>
               <label className="block text-sm font-bold mb-3">Available tests</label>
 
               {loadingQuizzes ? (
-                <div
-                  className="w-full p-4 rounded-lg border border-black"
-                  style={{ backgroundColor: "var(--bg-soft)" }}
-                >
+                <div className="w-full p-4 rounded-2xl border bg-neutral-50">
                   Loading quizzes...
                 </div>
               ) : quizzes.length === 0 ? (
-                <div
-                  className="w-full p-4 rounded-lg border border-black"
-                  style={{ backgroundColor: "var(--bg-soft)" }}
-                >
+                <div className="w-full p-4 rounded-2xl border bg-neutral-50">
                   No quizzes available
                 </div>
               ) : (
@@ -234,17 +225,15 @@ export default function TakeTestPage() {
                     return (
                       <div
                         key={unitKey}
-                        className="border border-black rounded-xl overflow-hidden"
-                        style={{ backgroundColor: "var(--bg-soft)" }}
+                        className="border rounded-3xl overflow-hidden bg-neutral-50 shadow-sm"
                       >
                         <button
                           onClick={() => toggleUnit(unitKey)}
-                          className="w-full flex items-center justify-between px-4 py-4 text-left font-extrabold border-b border-black"
-                          style={{ backgroundColor: "var(--bg-card)" }}
+                          className="w-full flex items-center justify-between px-4 py-4 text-left font-extrabold border-b bg-white"
                         >
                           <span>
                             {unitKey}{" "}
-                            <span className="text-xs opacity-70">
+                            <span className="text-xs opacity-60">
                               ({unitTestCount} test{unitTestCount > 1 ? "s" : ""})
                             </span>
                           </span>
@@ -260,17 +249,15 @@ export default function TakeTestPage() {
                               return (
                                 <div
                                   key={topicKey}
-                                  className="border border-black rounded-lg overflow-hidden"
-                                  style={{ backgroundColor: "var(--bg-card)" }}
+                                  className="border rounded-2xl overflow-hidden bg-white"
                                 >
                                   <button
                                     onClick={() => toggleTopic(topicKey)}
-                                    className="w-full flex items-center justify-between px-4 py-3 text-left font-bold border-b border-black"
-                                    style={{ backgroundColor: "var(--bg-soft)" }}
+                                    className="w-full flex items-center justify-between px-4 py-3 text-left font-bold border-b bg-neutral-50"
                                   >
                                     <span>
                                       {topicKeyRaw}{" "}
-                                      <span className="text-xs opacity-70">
+                                      <span className="text-xs opacity-60">
                                         ({tests.length} test{tests.length > 1 ? "s" : ""})
                                       </span>
                                     </span>
@@ -287,23 +274,31 @@ export default function TakeTestPage() {
                                           <Link
                                             key={q.id}
                                             href={`/take-test/${q.id}`}
-                                            className="block w-full text-left px-4 py-3 rounded-lg border border-black transition"
+                                            className="block w-full text-left px-4 py-4 rounded-2xl border transition hover:bg-neutral-50"
                                             style={{
-                                              backgroundColor: "var(--bg-card)",
-                                              color: "var(--text-main)",
+                                              backgroundColor: "#ffffff",
+                                              color: "#111111",
                                             }}
                                           >
-                                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                              <span className="font-semibold">{testName}</span>
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                              <div className="min-w-0">
+                                                <div className="font-semibold break-words">
+                                                  {testName}
+                                                </div>
+                                                <div className="text-xs opacity-60 mt-1">
+                                                  Open test page
+                                                </div>
+                                              </div>
 
                                               {isCompleted ? (
-                                                <span
-                                                  className="text-xs px-2 py-1 rounded-md border border-black"
-                                                  style={{ backgroundColor: "var(--bg-soft)" }}
-                                                >
+                                                <span className="text-xs px-2 py-1 rounded-lg border bg-neutral-50 shrink-0">
                                                   Completed
                                                 </span>
-                                              ) : null}
+                                              ) : (
+                                                <span className="text-xs px-2 py-1 rounded-lg border bg-yellow-100 shrink-0">
+                                                  Start
+                                                </span>
+                                              )}
                                             </div>
                                           </Link>
                                         );
@@ -323,27 +318,27 @@ export default function TakeTestPage() {
             </div>
 
             <div className="space-y-4">
-              <div
-                className="border border-black rounded-xl p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <div className="text-xs opacity-80">Quiz browser</div>
-                <div className="font-bold mt-1">{totalQuizCount} tests available</div>
-                <div className="text-xs opacity-80 mt-2">
+              <div className="border rounded-3xl bg-white p-5 shadow-sm">
+                <div className="text-xs opacity-60">Quiz browser</div>
+                <div className="font-bold text-xl mt-1">{totalQuizCount} tests available</div>
+                <div className="text-sm opacity-70 mt-3">
                   Completed tests stay marked. You can still open and practice them again.
                 </div>
               </div>
 
-              <div
-                className="border border-black rounded-xl p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <div className="text-xs opacity-80">How it works</div>
-                <div className="text-sm mt-2">
-                  Select a test from the list to open its own solving page.
+              <div className="border rounded-3xl bg-white p-5 shadow-sm">
+                <div className="text-xs opacity-60">How it works</div>
+                <div className="text-sm mt-3 leading-6">
+                  Choose a test from the list and open its own page.
+                  <br />
+                  Submit there to see your result and that test&apos;s mini leaderboard.
                 </div>
-                <div className="text-sm mt-2">
-                  After submitting, you will see your result and that test&apos;s mini leaderboard there.
+              </div>
+
+              <div className="border rounded-3xl bg-white p-5 shadow-sm">
+                <div className="text-xs opacity-60">Tip</div>
+                <div className="text-sm mt-3 leading-6">
+                  Start with unfinished tests first, then return later to practice completed ones again.
                 </div>
               </div>
             </div>
