@@ -43,6 +43,13 @@ type RankingRow = {
   score: number;
 };
 
+type ReviewAnswerRow = {
+  question_id: number;
+  selected_option: "A" | "B" | "C" | "D" | null;
+  correct_option: "A" | "B" | "C" | "D";
+  is_correct: boolean;
+};
+
 type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
 type GroupedQuizMap = Record<string, Record<string, QuizRow[]>>;
 
@@ -57,6 +64,7 @@ export default function TakeTestPage() {
 
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [answers, setAnswers] = useState<AnswerMap>({});
+  const [reviewAnswers, setReviewAnswers] = useState<Record<number, ReviewAnswerRow>>({});
 
   const [submitting, setSubmitting] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -300,6 +308,7 @@ export default function TakeTestPage() {
     setAnswers({});
     setQuizRanking([]);
     setServerScore(null);
+    setReviewAnswers({});
 
     const { data, error } = await supabase
       .from("questions")
@@ -331,6 +340,7 @@ export default function TakeTestPage() {
       setQuestions([]);
       setQuizRanking([]);
       setServerScore(null);
+      setReviewAnswers({});
     }
   }, [quizId]);
 
@@ -407,6 +417,13 @@ export default function TakeTestPage() {
         return;
       }
 
+      const incomingAnswers: ReviewAnswerRow[] = Array.isArray(json?.answers) ? json.answers : [];
+      const reviewMap: Record<number, ReviewAnswerRow> = {};
+      incomingAnswers.forEach((item) => {
+        reviewMap[item.question_id] = item;
+      });
+
+      setReviewAnswers(reviewMap);
       setServerScore(typeof json?.score === "number" ? json.score : 0);
       setMsg(json?.message || "Completed successfully.");
       await loadCompletedQuizzes(studentId);
@@ -424,6 +441,7 @@ export default function TakeTestPage() {
     setAnswers({});
     setMsg("");
     setServerScore(null);
+    setReviewAnswers({});
   };
 
   const selectedQuizDetails = selectedQuiz ? getTopicAndTest(selectedQuiz) : null;
@@ -656,6 +674,8 @@ export default function TakeTestPage() {
               <div className="space-y-4">
                 {questions.map((q, idx) => {
                   const picked = answers[q.id];
+                  const review = reviewAnswers[q.id];
+                  const isCorrect = review?.is_correct ?? false;
 
                   return (
                     <div
@@ -701,7 +721,12 @@ export default function TakeTestPage() {
 
                       {finished ? (
                         <div className="mt-3 text-sm font-bold break-words">
-                          Your answer: {picked ?? "-"}
+                          Your answer: {review?.selected_option ?? "-"} • Correct: {review?.correct_option ?? "-"} •{" "}
+                          {review?.selected_option
+                            ? isCorrect
+                              ? "✅ Correct"
+                              : "❌ Wrong"
+                            : "❌ Not answered"}
                         </div>
                       ) : null}
                     </div>
