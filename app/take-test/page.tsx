@@ -18,7 +18,6 @@ type QuestionRow = {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_option: "A" | "B" | "C" | "D";
   points: number;
 };
 
@@ -67,6 +66,7 @@ export default function TakeTestPage() {
   const [openUnits, setOpenUnits] = useState<Record<string, boolean>>({});
   const [openTopics, setOpenTopics] = useState<Record<string, boolean>>({});
   const [quizRanking, setQuizRanking] = useState<RankingRow[]>([]);
+  const [serverScore, setServerScore] = useState<number | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -85,15 +85,6 @@ export default function TakeTestPage() {
   const totalPoints = useMemo(() => {
     return questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
   }, [questions]);
-
-  const chosenPoints = useMemo(() => {
-    let sum = 0;
-    for (const q of questions) {
-      const picked = answers[q.id];
-      if (picked && picked === q.correct_option) sum += Number(q.points) || 0;
-    }
-    return sum;
-  }, [questions, answers]);
 
   const answeredCount = useMemo(() => {
     return Object.keys(answers).length;
@@ -181,7 +172,6 @@ export default function TakeTestPage() {
     });
 
     const dedupedRows = Array.from(firstByStudent.values());
-
     const studentIds = dedupedRows.map((row) => row.student_id);
 
     if (studentIds.length === 0) {
@@ -309,12 +299,11 @@ export default function TakeTestPage() {
     setFinished(false);
     setAnswers({});
     setQuizRanking([]);
+    setServerScore(null);
 
     const { data, error } = await supabase
       .from("questions")
-      .select(
-        "id, quiz_id, question_text, option_a, option_b, option_c, option_d, correct_option, points"
-      )
+      .select("id, quiz_id, question_text, option_a, option_b, option_c, option_d, points")
       .eq("quiz_id", qid)
       .order("id", { ascending: true });
 
@@ -341,6 +330,7 @@ export default function TakeTestPage() {
     } else {
       setQuestions([]);
       setQuizRanking([]);
+      setServerScore(null);
     }
   }, [quizId]);
 
@@ -392,11 +382,9 @@ export default function TakeTestPage() {
         return;
       }
 
-      const score = chosenPoints;
       const submittedAnswers = questions.map((q) => ({
         question_id: q.id,
         selected_option: answers[q.id] ?? null,
-        correct_option: q.correct_option,
       }));
 
       const res = await fetch("/api/leaderboard", {
@@ -407,7 +395,6 @@ export default function TakeTestPage() {
         },
         body: JSON.stringify({
           quiz_id: Number(quizId),
-          score: Number(score),
           answers: submittedAnswers,
         }),
       });
@@ -420,6 +407,7 @@ export default function TakeTestPage() {
         return;
       }
 
+      setServerScore(typeof json?.score === "number" ? json.score : 0);
       setMsg(json?.message || "Completed successfully.");
       await loadCompletedQuizzes(studentId);
       await loadQuizRanking(Number(quizId));
@@ -435,6 +423,7 @@ export default function TakeTestPage() {
     setFinished(false);
     setAnswers({});
     setMsg("");
+    setServerScore(null);
   };
 
   const selectedQuizDetails = selectedQuiz ? getTopicAndTest(selectedQuiz) : null;
@@ -667,7 +656,6 @@ export default function TakeTestPage() {
               <div className="space-y-4">
                 {questions.map((q, idx) => {
                   const picked = answers[q.id];
-                  const isCorrect = picked && picked === q.correct_option;
 
                   return (
                     <div
@@ -713,8 +701,7 @@ export default function TakeTestPage() {
 
                       {finished ? (
                         <div className="mt-3 text-sm font-bold break-words">
-                          Your answer: {picked ?? "-"} • Correct: {q.correct_option} •{" "}
-                          {picked ? (isCorrect ? "✅ Correct" : "❌ Wrong") : "❌ Not answered"}
+                          Your answer: {picked ?? "-"}
                         </div>
                       ) : null}
                     </div>
@@ -756,7 +743,7 @@ export default function TakeTestPage() {
               <p className="text-sm mb-2 break-words">{getQuizLabel(selectedQuiz)}</p>
             ) : null}
             <p className="text-sm mb-4">
-              Score is saved to leaderboard after you submit this quiz.
+              Score is calculated on the server and saved to leaderboard after you submit this quiz.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -765,7 +752,7 @@ export default function TakeTestPage() {
                 style={{ backgroundColor: "var(--bg-soft)" }}
               >
                 <div className="text-xs opacity-80">Points</div>
-                <div className="text-2xl font-extrabold">{chosenPoints}</div>
+                <div className="text-2xl font-extrabold">{serverScore ?? 0}</div>
               </div>
               <div
                 className="border border-black rounded-xl p-4"
