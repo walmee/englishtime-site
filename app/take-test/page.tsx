@@ -265,21 +265,24 @@ export default function TakeTestPage() {
     setServerScore(null);
     setReviewAnswers({});
 
-    const { data, error } = await supabase
-      .from("questions")
-      .select("id, quiz_id, question_text, option_a, option_b, option_c, option_d, points")
-      .eq("quiz_id", qid)
-      .order("id", { ascending: true });
+    try {
+      const res = await fetch(`/api/quiz/${encodeURIComponent(String(qid))}`);
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
 
-    if (error) {
-      setMsg(error.message);
+      if (!res.ok) {
+        setMsg(json?.error || "Questions could not be loaded.");
+        setQuestions([]);
+        return;
+      }
+
+      setQuestions(Array.isArray(json?.questions) ? json.questions : []);
+    } catch (e: any) {
+      setMsg(e?.message || "Questions could not be loaded.");
       setQuestions([]);
+    } finally {
       setLoadingQuestions(false);
-      return;
     }
-
-    setQuestions(Array.isArray(data) ? (data as QuestionRow[]) : []);
-    setLoadingQuestions(false);
   };
 
   useEffect(() => {
