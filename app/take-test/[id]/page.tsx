@@ -90,6 +90,12 @@ export default function QuizSolvePage() {
     return quiz.title || quiz.unit || "Quiz";
   };
 
+  const getStatusText = () => {
+    if (finished) return "Submitted";
+    if (answeredCount > 0) return "In progress";
+    return "Not submitted yet";
+  };
+
   const loadQuizPageData = async () => {
     if (!quizId) {
       setMsg("Invalid quiz.");
@@ -304,20 +310,20 @@ export default function QuizSolvePage() {
 
           <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-2xl border bg-neutral-50 p-4">
-              <div className="text-xs opacity-60">Questions</div>
-              <div className="text-2xl font-extrabold mt-1">{questions.length}</div>
+              <div className="text-xs opacity-60">Status</div>
+              <div className="text-xl font-bold mt-1">{getStatusText()}</div>
             </div>
 
             <div className="rounded-2xl border bg-neutral-50 p-4">
-              <div className="text-xs opacity-60">Answered</div>
-              <div className="text-2xl font-extrabold mt-1">
+              <div className="text-xs opacity-60">Questions</div>
+              <div className="text-xl font-bold mt-1">{questions.length}</div>
+            </div>
+
+            <div className="rounded-2xl border bg-neutral-50 p-4">
+              <div className="text-xs opacity-60">Answered so far</div>
+              <div className="text-xl font-bold mt-1">
                 {answeredCount}/{questions.length}
               </div>
-            </div>
-
-            <div className="rounded-2xl border bg-neutral-50 p-4">
-              <div className="text-xs opacity-60">Total points</div>
-              <div className="text-2xl font-extrabold mt-1">{totalPoints}</div>
             </div>
           </div>
         </div>
