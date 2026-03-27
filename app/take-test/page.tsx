@@ -25,18 +25,6 @@ type ResultRow = {
   quiz_id: number;
 };
 
-type LeaderboardRow = {
-  student_id: string;
-  quiz_id: number;
-  score: number;
-  created_at?: string | null;
-};
-
-type ProfileRow = {
-  id: string;
-  username: string | null;
-};
-
 type RankingRow = {
   student_id: string;
   username: string;
@@ -157,57 +145,24 @@ export default function TakeTestPage() {
   const loadQuizRanking = async (qid: number) => {
     setLoadingRanking(true);
 
-    const { data, error } = await supabase
-      .from("leaderboard")
-      .select("student_id, quiz_id, score, created_at")
-      .eq("quiz_id", qid)
-      .order("score", { ascending: false })
-      .order("created_at", { ascending: true });
+    try {
+      const res = await fetch(
+        `/api/quiz-ranking?quiz_id=${encodeURIComponent(String(qid))}`
+      );
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
 
-    if (error) {
-      setQuizRanking([]);
-      setLoadingRanking(false);
-      return;
-    }
-
-    const rows = Array.isArray(data) ? (data as LeaderboardRow[]) : [];
-
-    const firstByStudent = new Map<string, LeaderboardRow>();
-    rows.forEach((row) => {
-      if (!firstByStudent.has(row.student_id)) {
-        firstByStudent.set(row.student_id, row);
+      if (!res.ok) {
+        setQuizRanking([]);
+        return;
       }
-    });
 
-    const dedupedRows = Array.from(firstByStudent.values());
-    const studentIds = dedupedRows.map((row) => row.student_id);
-
-    if (studentIds.length === 0) {
+      setQuizRanking(Array.isArray(json?.ranking) ? json.ranking : []);
+    } catch {
       setQuizRanking([]);
+    } finally {
       setLoadingRanking(false);
-      return;
     }
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("id, username")
-      .in("id", studentIds);
-
-    const profileMap: Record<string, string> = {};
-    ((profileData || []) as ProfileRow[]).forEach((profile) => {
-      profileMap[profile.id] = profile.username || "Student";
-    });
-
-    const ranking = dedupedRows
-      .map((row) => ({
-        student_id: row.student_id,
-        username: profileMap[row.student_id] || "Student",
-        score: Number(row.score) || 0,
-      }))
-      .sort((a, b) => b.score - a.score || a.username.localeCompare(b.username));
-
-    setQuizRanking(ranking);
-    setLoadingRanking(false);
   };
 
   const loadQuizzes = async () => {
