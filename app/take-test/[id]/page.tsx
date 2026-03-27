@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type QuestionRow = {
@@ -39,6 +39,7 @@ type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
 
 export default function QuizSolvePage() {
   const params = useParams();
+  const router = useRouter();
   const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const quizId = Number(rawId);
 
@@ -57,18 +58,21 @@ export default function QuizSolvePage() {
   const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-    const loadUser = async () => {
+    const requireLogin = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (user?.id) {
-        setStudentId(user.id);
+      if (!session?.user?.id) {
+        router.replace("/login");
+        return;
       }
+
+      setStudentId(session.user.id);
     };
 
-    loadUser();
-  }, []);
+    requireLogin();
+  }, [router]);
 
   const totalPoints = useMemo(() => {
     return questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
@@ -105,7 +109,23 @@ export default function QuizSolvePage() {
     }
 
     try {
-      const res = await fetch(`/api/quiz/${encodeURIComponent(String(quizId))}`);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        router.replace("/login");
+        return;
+      }
+
+      const res = await fetch(`/api/quiz/${encodeURIComponent(String(quizId))}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
       const text = await res.text();
       const json = text ? JSON.parse(text) : {};
 
@@ -150,6 +170,8 @@ export default function QuizSolvePage() {
 
   useEffect(() => {
     const init = async () => {
+      if (!studentId) return;
+
       setLoadingPage(true);
       setMsg("");
       setFinished(false);
@@ -163,13 +185,13 @@ export default function QuizSolvePage() {
       setLoadingPage(false);
     };
 
-    if (quizId) {
+    if (quizId && studentId) {
       init();
-    } else {
+    } else if (!quizId) {
       setLoadingPage(false);
       setMsg("Invalid quiz.");
     }
-  }, [quizId]);
+  }, [quizId, studentId]);
 
   const pick = (questionId: number, option: "A" | "B" | "C" | "D") => {
     if (finished) return;
@@ -190,7 +212,7 @@ export default function QuizSolvePage() {
     }
 
     if (!studentId) {
-      setMsg("Student ID not found. Please login again.");
+      router.replace("/login");
       return;
     }
 
@@ -206,8 +228,7 @@ export default function QuizSolvePage() {
       const accessToken = session?.access_token;
 
       if (!accessToken) {
-        setMsg("Session not found. Please login again.");
-        setFinished(false);
+        router.replace("/login");
         return;
       }
 
