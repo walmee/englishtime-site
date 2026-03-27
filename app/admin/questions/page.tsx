@@ -235,23 +235,44 @@ export default function AdminQuestionsPage() {
     setLoadingQuestions(true);
     setMsg("");
 
-    const { data, error } = await supabase
-      .from("questions")
-      .select(
-        "id, quiz_id, question_text, option_a, option_b, option_c, option_d, correct_option, points, explanation"
-      )
-      .eq("quiz_id", qid)
-      .order("id", { ascending: true });
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (error) {
-      setMsg(error.message);
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        setMsg("Session not found. Please login again.");
+        setQuestions([]);
+        setLoadingQuestions(false);
+        return;
+      }
+
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(String(qid))}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
+
+      if (!res.ok) {
+        setMsg(json?.error || "Questions could not be loaded.");
+        setQuestions([]);
+        setLoadingQuestions(false);
+        return;
+      }
+
+      setQuestions(Array.isArray(json?.questions) ? (json.questions as QuestionRow[]) : []);
+      setLoadingQuestions(false);
+    } catch (e: any) {
+      setMsg(e?.message || "Questions could not be loaded.");
       setQuestions([]);
       setLoadingQuestions(false);
-      return;
     }
-
-    setQuestions(Array.isArray(data) ? (data as QuestionRow[]) : []);
-    setLoadingQuestions(false);
   };
 
   useEffect(() => {
