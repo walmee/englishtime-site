@@ -118,87 +118,61 @@ export default function WritingPage() {
     return "bg-red-50 border-red-200 text-red-900";
   };
 
-  const loadAll = async (sid: string, currentClassId: number) => {
+  const loadAll = async () => {
     setLoading(true);
     setNotice("");
     setNoticeTone("info");
 
-    const { data: topicData, error: topicError } = await supabase
-      .from("writing_topics")
-      .select("id, title, prompt, class_id, created_at")
-      .eq("class_id", currentClassId)
-      .order("id", { ascending: false });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (topicError) {
-      setNotice(topicError.message);
-      setNoticeTone("error");
-      setTopics([]);
-      setSubmissions([]);
-      setLoading(false);
+    const userId = session?.user?.id;
+    const accessToken = session?.access_token;
+
+    if (!userId || !accessToken) {
+      router.replace("/login");
       return;
     }
 
-    const topicRows = Array.isArray(topicData) ? (topicData as WritingTopicRow[]) : [];
-    setTopics(topicRows);
+    setStudentId(userId);
 
-    if (topicRows.length === 0) {
-      setSubmissions([]);
-      setLoading(false);
-      return;
-    }
+    try {
+      const res = await fetch("/api/student/writing", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    const topicIds = topicRows.map((t) => t.id);
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : {};
 
-    const { data: submissionData, error: submissionError } = await supabase
-      .from("writing_submissions")
-      .select("id, topic_id, submission_text, created_at, score, feedback, reviewed_at")
-      .eq("student_id", sid)
-      .in("topic_id", topicIds);
-
-    if (submissionError) {
-      setNotice(submissionError.message);
-      setNoticeTone("error");
-      setSubmissions([]);
-      setLoading(false);
-      return;
-    }
-
-    setSubmissions(Array.isArray(submissionData) ? (submissionData as SubmissionRow[]) : []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const userId = session?.user?.id;
-      if (!userId) {
-        router.replace("/login");
-        return;
-      }
-
-      setStudentId(userId);
-
-      const { data: classStudent } = await supabase
-        .from("class_students")
-        .select("class_id")
-        .eq("student_id", userId)
-        .maybeSingle();
-
-      if (!classStudent?.class_id) {
-        setNotice("No class assigned to this student.");
-        setNoticeTone("warning");
+      if (!res.ok) {
+        setNotice(json?.error || "Writing tasks could not be loaded.");
+        setNoticeTone("error");
+        setTopics([]);
+        setSubmissions([]);
         setLoading(false);
         return;
       }
 
-      setClassId(classStudent.class_id);
-      await loadAll(userId, classStudent.class_id);
-    };
+      setClassId(typeof json?.classId === "number" ? json.classId : null);
+      setTopics(Array.isArray(json?.topics) ? (json.topics as WritingTopicRow[]) : []);
+      setSubmissions(
+        Array.isArray(json?.submissions) ? (json.submissions as SubmissionRow[]) : []
+      );
+      setLoading(false);
+    } catch (e: any) {
+      setNotice(e?.message || "Writing tasks could not be loaded.");
+      setNoticeTone("error");
+      setTopics([]);
+      setSubmissions([]);
+      setLoading(false);
+    }
+  };
 
-    init();
+  useEffect(() => {
+    loadAll();
   }, [router]);
 
   const submitWriting = async (topicId: number) => {
@@ -219,26 +193,49 @@ export default function WritingPage() {
 
     setSavingTopicId(topicId);
 
-    const { error } = await supabase.from("writing_submissions").insert({
-      topic_id: topicId,
-      student_id: studentId,
-      submission_text: text,
-    });
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (error) {
-      setNotice(error.message);
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        router.replace("/login");
+        return;
+      }
+
+      const res = await fetch("/api/student/writing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          topic_id: topicId,
+          submission_text: text,
+        }),
+      });
+
+      const textRes = await res.text();
+      const json = textRes ? JSON.parse(textRes) : {};
+
+      if (!res.ok) {
+        setNotice(json?.error || "Submission failed.");
+        setNoticeTone("error");
+        setSavingTopicId(null);
+        return;
+      }
+
+      await loadAll();
+      setSavingTopicId(null);
+      setNotice(json?.message || "Your writing has been submitted successfully.");
+      setNoticeTone("success");
+    } catch (e: any) {
+      setNotice(e?.message || "Submission failed.");
       setNoticeTone("error");
       setSavingTopicId(null);
-      return;
     }
-
-    if (classId) {
-      await loadAll(studentId, classId);
-    }
-
-    setSavingTopicId(null);
-    setNotice("Your writing has been submitted successfully.");
-    setNoticeTone("success");
   };
 
   const noticeStyles = getNoticeStyles(noticeTone);
