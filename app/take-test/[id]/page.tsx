@@ -59,6 +59,8 @@ export default function QuizSolvePage() {
   const [quizRanking, setQuizRanking] = useState<RankingRow[]>([]);
   const [serverScore, setServerScore] = useState<number | null>(null);
   const [finished, setFinished] = useState(false);
+
+  const [hasPreviousSubmission, setHasPreviousSubmission] = useState(false);
   const [lockedFirstScore, setLockedFirstScore] = useState<number | null>(null);
 
   useEffect(() => {
@@ -100,6 +102,7 @@ export default function QuizSolvePage() {
 
   const getStatusText = () => {
     if (finished) return "Submitted";
+    if (hasPreviousSubmission && answeredCount === 0) return "Previously submitted";
     if (answeredCount > 0) return "In progress";
     return "Not submitted yet";
   };
@@ -177,6 +180,36 @@ export default function QuizSolvePage() {
     }
   };
 
+  const loadPreviousSubmissionStatus = async () => {
+    if (!studentId || !quizId) return;
+
+    const { data, error } = await supabase
+      .from("leaderboard")
+      .select("score")
+      .eq("student_id", studentId)
+      .eq("quiz_id", quizId)
+      .maybeSingle();
+
+    if (error) {
+      setHasPreviousSubmission(false);
+      setLockedFirstScore(null);
+      return;
+    }
+
+    if (data) {
+      const protectedScore = Number(data.score) || 0;
+      setHasPreviousSubmission(true);
+      setLockedFirstScore(protectedScore);
+      setNotice(
+        "You already completed this quiz. You can take it again, but the leaderboard will not change."
+      );
+      setNoticeTone("warning");
+    } else {
+      setHasPreviousSubmission(false);
+      setLockedFirstScore(null);
+    }
+  };
+
   const loadRanking = async () => {
     setLoadingRanking(true);
 
@@ -212,9 +245,11 @@ export default function QuizSolvePage() {
       setReviewAnswers({});
       setQuizRanking([]);
       setServerScore(null);
+      setHasPreviousSubmission(false);
       setLockedFirstScore(null);
 
       await loadQuizPageData();
+      await loadPreviousSubmissionStatus();
 
       setLoadingPage(false);
     };
@@ -227,6 +262,12 @@ export default function QuizSolvePage() {
       setNoticeTone("error");
     }
   }, [quizId, studentId]);
+
+  useEffect(() => {
+    if (hasPreviousSubmission && quizId) {
+      loadRanking();
+    }
+  }, [hasPreviousSubmission, quizId]);
 
   const pick = (questionId: number, option: "A" | "B" | "C" | "D") => {
     if (finished) return;
@@ -313,14 +354,18 @@ export default function QuizSolvePage() {
       }
 
       if (json?.locked) {
-        setLockedFirstScore(typeof json?.first_score === "number" ? json.first_score : null);
+        const protectedScore =
+          typeof json?.first_score === "number" ? json.first_score : lockedFirstScore ?? 0;
+
+        setHasPreviousSubmission(true);
+        setLockedFirstScore(protectedScore);
         setNotice(
-          json?.message ||
-            "This quiz was already submitted before. Your first leaderboard score is protected."
+          "You already completed this quiz. You can take it again, but the leaderboard will not change."
         );
         setNoticeTone("warning");
       } else {
-        setLockedFirstScore(null);
+        setHasPreviousSubmission(true);
+        setLockedFirstScore(typeof json?.score === "number" ? json.score : null);
         setNotice(json?.message || "Completed successfully.");
         setNoticeTone("success");
       }
@@ -340,10 +385,12 @@ export default function QuizSolvePage() {
     setAnswers({});
     setReviewAnswers({});
     setServerScore(null);
-    setQuizRanking([]);
-    setLockedFirstScore(null);
-    setNotice("");
-    setNoticeTone("info");
+    setNotice(
+      hasPreviousSubmission
+        ? "You already completed this quiz. You can take it again, but the leaderboard will not change."
+        : ""
+    );
+    setNoticeTone(hasPreviousSubmission ? "warning" : "info");
   };
 
   if (loadingPage) {
@@ -540,19 +587,34 @@ export default function QuizSolvePage() {
           )}
         </div>
 
-        {finished ? (
+        {(finished || hasPreviousSubmission) ? (
           <div className="rounded-3xl border bg-white p-6 shadow-sm">
-            <h3 className="text-xl font-bold mb-2">Result</h3>
+            <h3 className="text-xl font-bold mb-2">
+              {finished ? "Result" : "Your Previous Attempt"}
+            </h3>
             <p className="text-sm mb-2 break-words">{getQuizLabel(quizInfo)}</p>
             <p className="text-sm mb-4 opacity-80">
-              Score is calculated on the server and saved to leaderboard after you submit this quiz.
+              {finished
+                ? "Score is calculated on the server and saved to leaderboard after you submit this quiz."
+                : "You completed this quiz before. Your first leaderboard score remains protected."}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               {[
-                { label: lockedFirstScore !== null ? "Protected Score" : "Score", value: serverScore ?? 0 },
+                {
+                  label: lockedFirstScore !== null ? "Protected Score" : "Score",
+                  value:
+                    finished
+                      ? (serverScore ?? lockedFirstScore ?? 0)
+                      : (lockedFirstScore ?? 0),
+                },
                 { label: "Total", value: totalPoints },
-                { label: "Answered", value: `${answeredCount}/${questions.length}` },
+                {
+                  label: "Answered",
+                  value: finished
+                    ? `${answeredCount}/${questions.length}`
+                    : `Previous score saved`,
+                },
               ].map((item) => (
                 <div
                   key={item.label}
