@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 
 type QuizRow = {
@@ -17,6 +18,8 @@ type ResultRow = {
 type GroupedQuizMap = Record<string, Record<string, QuizRow[]>>;
 
 export default function TakeTestPage() {
+  const router = useRouter();
+
   const [msg, setMsg] = useState("");
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
 
@@ -29,16 +32,19 @@ export default function TakeTestPage() {
   useEffect(() => {
     const loadUser = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (user?.id) {
-        setStudentId(user.id);
+      if (!session?.user?.id) {
+        router.replace("/login");
+        return;
       }
+
+      setStudentId(session.user.id);
     };
 
     loadUser();
-  }, []);
+  }, [router]);
 
   const getTopicAndTest = (quiz: QuizRow) => {
     const parts = quiz.title.split(" - ");
