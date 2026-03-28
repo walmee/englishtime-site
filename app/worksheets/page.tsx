@@ -45,14 +45,10 @@ export default function WorksheetsPage() {
       return bTime - aTime;
     })[0];
 
-    return latest?.created_at
-      ? new Date(latest.created_at).toLocaleString()
-      : "";
+    return latest?.created_at ? new Date(latest.created_at).toLocaleString() : "";
   }, [worksheets]);
 
   useEffect(() => {
-    let mounted = true;
-
     const load = async () => {
       setLoading(true);
       setNotice("");
@@ -62,54 +58,44 @@ export default function WorksheetsPage() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (!session?.user) {
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
         router.replace("/login");
         return;
       }
 
-      const userId = session.user.id;
+      try {
+        const res = await fetch("/api/student/worksheets", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
 
-      const { data: classStudent, error: classStudentError } = await supabase
-        .from("class_students")
-        .select("class_id")
-        .eq("student_id", userId)
-        .single();
+        const text = await res.text();
+        const json = text ? JSON.parse(text) : {};
 
-      if (!mounted) return;
+        if (!res.ok) {
+          setNotice(json?.error || "Worksheets could not be loaded.");
+          setNoticeTone("error");
+          setWorksheets([]);
+          setLoading(false);
+          return;
+        }
 
-      if (classStudentError || !classStudent) {
-        setNotice(classStudentError?.message || "Student class not found.");
+        setWorksheets(
+          Array.isArray(json?.worksheets) ? (json.worksheets as WorksheetRow[]) : []
+        );
+        setLoading(false);
+      } catch (e: any) {
+        setNotice(e?.message || "Worksheets could not be loaded.");
         setNoticeTone("error");
         setWorksheets([]);
         setLoading(false);
-        return;
       }
-
-      const { data, error } = await supabase
-        .from("worksheets")
-        .select("id, title, description, file_url, class_id, created_at")
-        .eq("class_id", classStudent.class_id)
-        .order("id", { ascending: false });
-
-      if (!mounted) return;
-
-      if (error) {
-        setNotice(error.message);
-        setNoticeTone("error");
-        setWorksheets([]);
-        setLoading(false);
-        return;
-      }
-
-      setWorksheets(Array.isArray(data) ? (data as WorksheetRow[]) : []);
-      setLoading(false);
     };
 
     load();
-
-    return () => {
-      mounted = false;
-    };
   }, [router]);
 
   const noticeStyles = getNoticeStyles(noticeTone);
@@ -239,11 +225,11 @@ export default function WorksheetsPage() {
         <div className="rounded-3xl border bg-white p-6 shadow-sm">
           <h3 className="text-xl font-bold mb-2">Writing Feedback</h3>
           <p className="text-sm opacity-70">
-            This section can show your teacher&apos;s writing score and comment.
+            Your writing scores and teacher comments are shown on the Writing page.
           </p>
 
           <div className="mt-4 rounded-2xl border border-dashed p-6 text-sm">
-            Writing feedback panel is not connected yet.
+            Open the Writing page to review teacher score and feedback for your submissions.
           </div>
         </div>
       </main>
