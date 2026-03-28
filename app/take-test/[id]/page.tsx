@@ -36,6 +36,7 @@ type ReviewAnswerRow = {
 };
 
 type AnswerMap = Record<number, "A" | "B" | "C" | "D">;
+type NoticeTone = "error" | "success" | "info" | "warning";
 
 export default function QuizSolvePage() {
   const params = useParams();
@@ -43,7 +44,9 @@ export default function QuizSolvePage() {
   const rawId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const quizId = Number(rawId);
 
-  const [msg, setMsg] = useState("");
+  const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState<NoticeTone>("info");
+
   const [loadingPage, setLoadingPage] = useState(true);
   const [loadingRanking, setLoadingRanking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +59,7 @@ export default function QuizSolvePage() {
   const [quizRanking, setQuizRanking] = useState<RankingRow[]>([]);
   const [serverScore, setServerScore] = useState<number | null>(null);
   const [finished, setFinished] = useState(false);
+  const [lockedFirstScore, setLockedFirstScore] = useState<number | null>(null);
 
   useEffect(() => {
     const requireLogin = async () => {
@@ -100,9 +104,35 @@ export default function QuizSolvePage() {
     return "Not submitted yet";
   };
 
+  const getNoticeStyles = (tone: NoticeTone) => {
+    switch (tone) {
+      case "error":
+        return {
+          wrapper: "bg-red-50 border-red-200 text-red-900",
+          title: "Issue",
+        };
+      case "success":
+        return {
+          wrapper: "bg-emerald-50 border-emerald-200 text-emerald-900",
+          title: "Success",
+        };
+      case "warning":
+        return {
+          wrapper: "bg-amber-50 border-amber-200 text-amber-900",
+          title: "Notice",
+        };
+      default:
+        return {
+          wrapper: "bg-sky-50 border-sky-200 text-sky-900",
+          title: "Info",
+        };
+    }
+  };
+
   const loadQuizPageData = async () => {
     if (!quizId) {
-      setMsg("Invalid quiz.");
+      setNotice("Invalid quiz.");
+      setNoticeTone("error");
       setQuizInfo(null);
       setQuestions([]);
       return;
@@ -130,7 +160,8 @@ export default function QuizSolvePage() {
       const json = text ? JSON.parse(text) : {};
 
       if (!res.ok) {
-        setMsg(json?.error || "Quiz could not be loaded.");
+        setNotice(json?.error || "Quiz could not be loaded.");
+        setNoticeTone("error");
         setQuizInfo(null);
         setQuestions([]);
         return;
@@ -139,7 +170,8 @@ export default function QuizSolvePage() {
       setQuizInfo(json?.quiz || null);
       setQuestions(Array.isArray(json?.questions) ? json.questions : []);
     } catch (e: any) {
-      setMsg(e?.message || "Quiz could not be loaded.");
+      setNotice(e?.message || "Quiz could not be loaded.");
+      setNoticeTone("error");
       setQuizInfo(null);
       setQuestions([]);
     }
@@ -173,12 +205,14 @@ export default function QuizSolvePage() {
       if (!studentId) return;
 
       setLoadingPage(true);
-      setMsg("");
+      setNotice("");
+      setNoticeTone("info");
       setFinished(false);
       setAnswers({});
       setReviewAnswers({});
       setQuizRanking([]);
       setServerScore(null);
+      setLockedFirstScore(null);
 
       await loadQuizPageData();
 
@@ -189,7 +223,8 @@ export default function QuizSolvePage() {
       init();
     } else if (!quizId) {
       setLoadingPage(false);
-      setMsg("Invalid quiz.");
+      setNotice("Invalid quiz.");
+      setNoticeTone("error");
     }
   }, [quizId, studentId]);
 
@@ -199,15 +234,17 @@ export default function QuizSolvePage() {
   };
 
   const submitTest = async () => {
-    setMsg("");
+    setNotice("");
 
     if (!quizId) {
-      setMsg("Invalid quiz.");
+      setNotice("Invalid quiz.");
+      setNoticeTone("error");
       return;
     }
 
     if (questions.length === 0) {
-      setMsg("This quiz has no questions yet.");
+      setNotice("This quiz has no questions yet.");
+      setNoticeTone("warning");
       return;
     }
 
@@ -252,7 +289,8 @@ export default function QuizSolvePage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setMsg(json?.error || "Submit failed.");
+        setNotice(json?.error || "Submit failed.");
+        setNoticeTone("error");
         setFinished(false);
         return;
       }
@@ -265,12 +303,32 @@ export default function QuizSolvePage() {
       });
 
       setReviewAnswers(reviewMap);
-      setServerScore(typeof json?.score === "number" ? json.score : 0);
-      setMsg(json?.message || "Completed successfully.");
+
+      if (typeof json?.score === "number") {
+        setServerScore(json.score);
+      } else if (typeof json?.first_score === "number") {
+        setServerScore(json.first_score);
+      } else {
+        setServerScore(0);
+      }
+
+      if (json?.locked) {
+        setLockedFirstScore(typeof json?.first_score === "number" ? json.first_score : null);
+        setNotice(
+          json?.message ||
+            "This quiz was already submitted before. Your first leaderboard score is protected."
+        );
+        setNoticeTone("warning");
+      } else {
+        setLockedFirstScore(null);
+        setNotice(json?.message || "Completed successfully.");
+        setNoticeTone("success");
+      }
 
       await loadRanking();
     } catch (e: any) {
-      setMsg(e?.message || "Unexpected error");
+      setNotice(e?.message || "Unexpected error");
+      setNoticeTone("error");
       setFinished(false);
     } finally {
       setSubmitting(false);
@@ -283,7 +341,9 @@ export default function QuizSolvePage() {
     setReviewAnswers({});
     setServerScore(null);
     setQuizRanking([]);
-    setMsg("");
+    setLockedFirstScore(null);
+    setNotice("");
+    setNoticeTone("info");
   };
 
   if (loadingPage) {
@@ -300,6 +360,8 @@ export default function QuizSolvePage() {
       </div>
     );
   }
+
+  const noticeStyles = getNoticeStyles(noticeTone);
 
   return (
     <div
@@ -322,10 +384,10 @@ export default function QuizSolvePage() {
             </Link>
           </div>
 
-          {msg && !quizInfo && (
-            <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4">
-              <p className="font-bold">Notice</p>
-              <p className="text-sm break-words">{msg}</p>
+          {notice && !quizInfo && (
+            <div className={`mt-4 border rounded-2xl p-4 ${noticeStyles.wrapper}`}>
+              <p className="font-bold">{noticeStyles.title}</p>
+              <p className="text-sm break-words">{notice}</p>
             </div>
           )}
 
@@ -357,10 +419,15 @@ export default function QuizSolvePage() {
             </div>
           </div>
 
-          {msg && quizInfo && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
-              <p className="font-bold">Notice</p>
-              <p className="text-sm break-words">{msg}</p>
+          {notice && quizInfo && (
+            <div className={`mb-4 border rounded-2xl p-4 ${noticeStyles.wrapper}`}>
+              <p className="font-bold">{noticeStyles.title}</p>
+              <p className="text-sm break-words">{notice}</p>
+              {lockedFirstScore !== null ? (
+                <p className="text-sm mt-2 font-medium">
+                  Protected first score: {lockedFirstScore} pts
+                </p>
+              ) : null}
             </div>
           )}
 
@@ -483,7 +550,7 @@ export default function QuizSolvePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               {[
-                { label: "Score", value: serverScore ?? 0 },
+                { label: lockedFirstScore !== null ? "Protected Score" : "Score", value: serverScore ?? 0 },
                 { label: "Total", value: totalPoints },
                 { label: "Answered", value: `${answeredCount}/${questions.length}` },
               ].map((item) => (
