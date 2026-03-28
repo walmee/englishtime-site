@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
-type Role = "admin" | "teacher";
-
 type ClassRow = {
   id: number;
   class_name: string;
@@ -22,15 +20,18 @@ type WorksheetRow = {
   created_at: string;
 };
 
+type NoticeTone = "error" | "success" | "info" | "warning";
+
 export default function AdminWorksheetsPage() {
   const router = useRouter();
 
-  const [role, setRole] = useState<Role | null>(null);
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [worksheets, setWorksheets] = useState<WorksheetRow[]>([]);
   const [classMap, setClassMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+
+  const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState<NoticeTone>("info");
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -47,9 +48,35 @@ export default function AdminWorksheetsPage() {
   const [editDueDate, setEditDueDate] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
+  const getNoticeStyles = (tone: NoticeTone) => {
+    switch (tone) {
+      case "error":
+        return {
+          wrapper: "bg-red-50 border-red-200 text-red-900",
+          title: "Issue",
+        };
+      case "success":
+        return {
+          wrapper: "bg-emerald-50 border-emerald-200 text-emerald-900",
+          title: "Success",
+        };
+      case "warning":
+        return {
+          wrapper: "bg-amber-50 border-amber-200 text-amber-900",
+          title: "Notice",
+        };
+      default:
+        return {
+          wrapper: "bg-sky-50 border-sky-200 text-sky-900",
+          title: "Info",
+        };
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
-    setMessage("");
+    setNotice("");
+    setNoticeTone("info");
 
     const {
       data: { session },
@@ -75,81 +102,8 @@ export default function AdminWorksheetsPage() {
 
     const currentRole = String(profile.role || "").toLowerCase();
 
-    if (currentRole !== "admin" && currentRole !== "teacher") {
+    if (currentRole !== "admin") {
       router.replace("/dashboard");
-      return;
-    }
-
-    setRole(currentRole as Role);
-
-    if (currentRole === "teacher") {
-      const { data: teacherClassData, error: teacherClassError } = await supabase
-        .from("teacher_classes")
-        .select("class_id")
-        .eq("teacher_id", userId);
-
-      if (teacherClassError) {
-        setMessage(teacherClassError.message);
-        setClasses([]);
-        setWorksheets([]);
-        setLoading(false);
-        return;
-      }
-
-      const allowedClassIds = Array.isArray(teacherClassData)
-        ? teacherClassData
-            .map((row: any) => Number(row.class_id))
-            .filter((id) => Number.isFinite(id))
-        : [];
-
-      if (allowedClassIds.length === 0) {
-        setClasses([]);
-        setWorksheets([]);
-        setClassMap({});
-        setLoading(false);
-        return;
-      }
-
-      const { data: classData, error: classError } = await supabase
-        .from("classes")
-        .select("id, class_name, level")
-        .in("id", allowedClassIds)
-        .eq("is_active", true)
-        .order("class_name", { ascending: true });
-
-      if (classError) {
-        setMessage(classError.message);
-        setClasses([]);
-        setWorksheets([]);
-        setLoading(false);
-        return;
-      }
-
-      const classRows = (classData || []) as ClassRow[];
-      const map: Record<number, string> = {};
-      classRows.forEach((cls) => {
-        map[cls.id] = `${cls.class_name} • ${cls.level}`;
-      });
-
-      const { data: worksheetData, error: worksheetError } = await supabase
-        .from("worksheets")
-        .select("id, title, description, file_url, class_id, due_date, created_at")
-        .in("class_id", allowedClassIds)
-        .order("created_at", { ascending: false });
-
-      if (worksheetError) {
-        setMessage(worksheetError.message);
-        setWorksheets([]);
-        setClasses(classRows);
-        setClassMap(map);
-        setLoading(false);
-        return;
-      }
-
-      setClasses(classRows);
-      setClassMap(map);
-      setWorksheets((worksheetData || []) as WorksheetRow[]);
-      setLoading(false);
       return;
     }
 
@@ -160,8 +114,10 @@ export default function AdminWorksheetsPage() {
       .order("class_name", { ascending: true });
 
     if (classError) {
-      setMessage(classError.message);
+      setNotice(classError.message);
+      setNoticeTone("error");
       setClasses([]);
+      setWorksheets([]);
       setLoading(false);
       return;
     }
@@ -178,7 +134,8 @@ export default function AdminWorksheetsPage() {
       .order("created_at", { ascending: false });
 
     if (worksheetError) {
-      setMessage(worksheetError.message);
+      setNotice(worksheetError.message);
+      setNoticeTone("error");
       setWorksheets([]);
       setClasses(classRows);
       setClassMap(map);
@@ -197,27 +154,19 @@ export default function AdminWorksheetsPage() {
   }, []);
 
   const createWorksheet = async () => {
-    setMessage("");
+    setNotice("");
 
     const safeTitle = title.trim();
     if (!safeTitle) {
-      setMessage("Worksheet title is required.");
+      setNotice("Worksheet title is required.");
+      setNoticeTone("warning");
       return;
     }
 
     if (!classId) {
-      setMessage("Please select a class.");
+      setNotice("Please select a class.");
+      setNoticeTone("warning");
       return;
-    }
-
-    const selectedClassId = Number(classId);
-
-    if (role === "teacher") {
-      const isAllowed = classes.some((cls) => cls.id === selectedClassId);
-      if (!isAllowed) {
-        setMessage("You can only create worksheets for your assigned classes.");
-        return;
-      }
     }
 
     setCreating(true);
@@ -230,18 +179,20 @@ export default function AdminWorksheetsPage() {
       title: safeTitle,
       description: description.trim() || null,
       file_url: fileUrl.trim() || null,
-      class_id: selectedClassId,
+      class_id: Number(classId),
       created_by: user?.id || null,
       due_date: dueDate || null,
     });
 
     if (error) {
-      setMessage(error.message);
+      setNotice(error.message);
+      setNoticeTone("error");
       setCreating(false);
       return;
     }
 
-    setMessage("Worksheet created.");
+    setNotice("Worksheet created.");
+    setNoticeTone("success");
     setTitle("");
     setDescription("");
     setFileUrl("");
@@ -252,24 +203,13 @@ export default function AdminWorksheetsPage() {
   };
 
   const startEdit = (worksheet: WorksheetRow) => {
-    if (role === "teacher") {
-      const isAllowed = worksheet.class_id
-        ? classes.some((cls) => cls.id === worksheet.class_id)
-        : false;
-
-      if (!isAllowed) {
-        setMessage("You can only edit worksheets from your assigned classes.");
-        return;
-      }
-    }
-
     setEditingId(worksheet.id);
     setEditTitle(worksheet.title || "");
     setEditDescription(worksheet.description || "");
     setEditFileUrl(worksheet.file_url || "");
     setEditClassId(worksheet.class_id ? String(worksheet.class_id) : "");
     setEditDueDate(worksheet.due_date || "");
-    setMessage("");
+    setNotice("");
   };
 
   const cancelEdit = () => {
@@ -282,27 +222,19 @@ export default function AdminWorksheetsPage() {
   };
 
   const saveEdit = async (worksheetId: number) => {
-    setMessage("");
+    setNotice("");
 
     const safeTitle = editTitle.trim();
     if (!safeTitle) {
-      setMessage("Worksheet title is required.");
+      setNotice("Worksheet title is required.");
+      setNoticeTone("warning");
       return;
     }
 
     if (!editClassId) {
-      setMessage("Please select a class.");
+      setNotice("Please select a class.");
+      setNoticeTone("warning");
       return;
-    }
-
-    const selectedClassId = Number(editClassId);
-
-    if (role === "teacher") {
-      const isAllowed = classes.some((cls) => cls.id === selectedClassId);
-      if (!isAllowed) {
-        setMessage("You can only move worksheets inside your assigned classes.");
-        return;
-      }
     }
 
     setSavingEdit(true);
@@ -313,18 +245,20 @@ export default function AdminWorksheetsPage() {
         title: safeTitle,
         description: editDescription.trim() || null,
         file_url: editFileUrl.trim() || null,
-        class_id: selectedClassId,
+        class_id: Number(editClassId),
         due_date: editDueDate || null,
       })
       .eq("id", worksheetId);
 
     if (error) {
-      setMessage(error.message);
+      setNotice(error.message);
+      setNoticeTone("error");
       setSavingEdit(false);
       return;
     }
 
-    setMessage("Worksheet updated.");
+    setNotice("Worksheet updated.");
+    setNoticeTone("success");
     setSavingEdit(false);
     cancelEdit();
     loadData();
@@ -334,20 +268,7 @@ export default function AdminWorksheetsPage() {
     const ok = window.confirm(`Delete "${worksheetTitle}" worksheet?`);
     if (!ok) return;
 
-    setMessage("");
-
-    const worksheet = worksheets.find((w) => w.id === worksheetId);
-
-    if (role === "teacher") {
-      const isAllowed = worksheet?.class_id
-        ? classes.some((cls) => cls.id === worksheet.class_id)
-        : false;
-
-      if (!isAllowed) {
-        setMessage("You can only delete worksheets from your assigned classes.");
-        return;
-      }
-    }
+    setNotice("");
 
     const { error } = await supabase
       .from("worksheets")
@@ -355,30 +276,30 @@ export default function AdminWorksheetsPage() {
       .eq("id", worksheetId);
 
     if (error) {
-      setMessage(error.message);
+      setNotice(error.message);
+      setNoticeTone("error");
       return;
     }
 
-    setMessage("Worksheet deleted.");
+    setNotice("Worksheet deleted.");
+    setNoticeTone("success");
     loadData();
   };
 
+  const noticeStyles = getNoticeStyles(noticeTone);
+
   return (
-    <div className="min-h-screen bg-yellow-300 text-black">
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="bg-yellow-100 border border-black rounded-2xl p-6">
+    <div className="min-h-screen w-full overflow-x-hidden" style={{ backgroundColor: "#f5f5f5", color: "#111111" }}>
+      <main className="max-w-6xl mx-auto px-3 py-6 space-y-6">
+        <div className="bg-white border rounded-3xl p-6 shadow-sm">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold">
-              {role === "teacher" ? "My Worksheets" : "Worksheets"}
-            </h1>
-            <p className="text-sm mt-1">
-              {role === "teacher"
-                ? "Upload and manage worksheets only for your assigned classes."
-                : "Send worksheets and assignments to classes."}
+            <h1 className="text-3xl font-bold">Worksheets</h1>
+            <p className="text-sm mt-1 opacity-80">
+              Create and manage worksheets for all active classes.
             </p>
           </div>
 
-          <div className="bg-yellow-50 border border-black rounded-xl p-4 mb-6">
+          <div className="bg-neutral-50 border rounded-2xl p-5 mb-6">
             <h2 className="text-xl font-bold mb-4">Create New Worksheet</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -387,7 +308,7 @@ export default function AdminWorksheetsPage() {
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-black bg-white"
+                  className="w-full p-3 rounded-xl border bg-white"
                   placeholder="Example: Unit 5 Grammar Worksheet"
                 />
               </div>
@@ -397,7 +318,7 @@ export default function AdminWorksheetsPage() {
                 <select
                   value={classId}
                   onChange={(e) => setClassId(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-black bg-white"
+                  className="w-full p-3 rounded-xl border bg-white"
                 >
                   <option value="">Select class</option>
                   {classes.map((cls) => (
@@ -413,7 +334,7 @@ export default function AdminWorksheetsPage() {
                 <input
                   value={fileUrl}
                   onChange={(e) => setFileUrl(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-black bg-white"
+                  className="w-full p-3 rounded-xl border bg-white"
                   placeholder="PDF or Drive link"
                 />
               </div>
@@ -424,7 +345,7 @@ export default function AdminWorksheetsPage() {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-black bg-white"
+                  className="w-full p-3 rounded-xl border bg-white"
                 />
               </div>
 
@@ -433,7 +354,7 @@ export default function AdminWorksheetsPage() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-3 rounded-lg border border-black bg-white min-h-[120px]"
+                  className="w-full p-3 rounded-xl border bg-white min-h-[120px]"
                   placeholder="Short description about the worksheet"
                 />
               </div>
@@ -443,34 +364,33 @@ export default function AdminWorksheetsPage() {
               <button
                 onClick={createWorksheet}
                 disabled={creating}
-                className="px-4 py-3 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 transition disabled:opacity-60"
+                className="px-4 py-3 rounded-xl border font-bold transition disabled:opacity-60"
+                style={{ backgroundColor: "#facc15", color: "#111111", borderColor: "#111111" }}
               >
                 {creating ? "Creating..." : "Create Worksheet"}
               </button>
             </div>
           </div>
 
-          {message ? (
-            <div className="mb-4 bg-yellow-50 border border-black rounded-xl p-4">
-              {message}
+          {notice ? (
+            <div className={`mb-4 border rounded-2xl p-4 ${noticeStyles.wrapper}`}>
+              <p className="font-bold">{noticeStyles.title}</p>
+              <p className="text-sm break-words">{notice}</p>
             </div>
           ) : null}
 
           {loading ? (
-            <div className="border border-dashed border-black rounded-lg p-8 text-center">
+            <div className="border border-dashed rounded-2xl p-8 text-center">
               Loading worksheets...
             </div>
           ) : worksheets.length === 0 ? (
-            <div className="border border-dashed border-black rounded-lg p-8 text-center">
+            <div className="border border-dashed rounded-2xl p-8 text-center">
               No worksheets yet.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {worksheets.map((worksheet) => (
-                <div
-                  key={worksheet.id}
-                  className="bg-yellow-50 border border-black rounded-xl p-4"
-                >
+                <div key={worksheet.id} className="bg-neutral-50 border rounded-2xl p-5">
                   {editingId === worksheet.id ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -478,7 +398,7 @@ export default function AdminWorksheetsPage() {
                         <input
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-black bg-white"
+                          className="w-full p-3 rounded-xl border bg-white"
                         />
                       </div>
 
@@ -487,7 +407,7 @@ export default function AdminWorksheetsPage() {
                         <select
                           value={editClassId}
                           onChange={(e) => setEditClassId(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-black bg-white"
+                          className="w-full p-3 rounded-xl border bg-white"
                         >
                           <option value="">Select class</option>
                           {classes.map((cls) => (
@@ -503,7 +423,7 @@ export default function AdminWorksheetsPage() {
                         <input
                           value={editFileUrl}
                           onChange={(e) => setEditFileUrl(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-black bg-white"
+                          className="w-full p-3 rounded-xl border bg-white"
                         />
                       </div>
 
@@ -513,7 +433,7 @@ export default function AdminWorksheetsPage() {
                           type="date"
                           value={editDueDate}
                           onChange={(e) => setEditDueDate(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-black bg-white"
+                          className="w-full p-3 rounded-xl border bg-white"
                         />
                       </div>
 
@@ -522,7 +442,7 @@ export default function AdminWorksheetsPage() {
                         <textarea
                           value={editDescription}
                           onChange={(e) => setEditDescription(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-black bg-white min-h-[120px]"
+                          className="w-full p-3 rounded-xl border bg-white min-h-[120px]"
                         />
                       </div>
 
@@ -530,14 +450,15 @@ export default function AdminWorksheetsPage() {
                         <button
                           onClick={() => saveEdit(worksheet.id)}
                           disabled={savingEdit}
-                          className="px-4 py-3 rounded-lg border border-black bg-black text-yellow-300 font-bold hover:bg-gray-900 transition disabled:opacity-60"
+                          className="px-4 py-3 rounded-xl border font-bold transition disabled:opacity-60"
+                          style={{ backgroundColor: "#facc15", color: "#111111", borderColor: "#111111" }}
                         >
                           {savingEdit ? "Saving..." : "Save"}
                         </button>
 
                         <button
                           onClick={cancelEdit}
-                          className="px-4 py-3 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
+                          className="px-4 py-3 rounded-xl border font-bold bg-white hover:bg-neutral-100 transition"
                         >
                           Cancel
                         </button>
@@ -547,24 +468,24 @@ export default function AdminWorksheetsPage() {
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
                         <div className="md:col-span-2">
-                          <div className="text-xs opacity-70">Title</div>
-                          <div className="font-bold text-lg">{worksheet.title}</div>
+                          <div className="text-xs opacity-60">Title</div>
+                          <div className="font-bold text-lg break-words">{worksheet.title}</div>
                           {worksheet.description ? (
-                            <div className="text-sm mt-1 opacity-80">
+                            <div className="text-sm mt-1 opacity-80 break-words">
                               {worksheet.description}
                             </div>
                           ) : null}
                         </div>
 
                         <div>
-                          <div className="text-xs opacity-70">Class</div>
+                          <div className="text-xs opacity-60">Class</div>
                           <div className="font-bold">
                             {worksheet.class_id ? classMap[worksheet.class_id] || "-" : "-"}
                           </div>
                         </div>
 
                         <div>
-                          <div className="text-xs opacity-70">Due Date</div>
+                          <div className="text-xs opacity-60">Due Date</div>
                           <div className="font-bold">{worksheet.due_date || "-"}</div>
                         </div>
 
@@ -574,7 +495,8 @@ export default function AdminWorksheetsPage() {
                               href={worksheet.file_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
+                              className="px-3 py-2 rounded-xl border font-bold hover:bg-yellow-300 transition"
+                              style={{ backgroundColor: "#facc15", color: "#111111", borderColor: "#111111" }}
                             >
                               Open
                             </a>
@@ -582,21 +504,21 @@ export default function AdminWorksheetsPage() {
 
                           <button
                             onClick={() => startEdit(worksheet)}
-                            className="px-3 py-2 rounded-lg border border-black bg-yellow-300 hover:bg-yellow-400 transition font-bold"
+                            className="px-3 py-2 rounded-xl border font-bold bg-white hover:bg-neutral-100 transition"
                           >
                             Edit
                           </button>
 
                           <button
                             onClick={() => deleteWorksheet(worksheet.id, worksheet.title)}
-                            className="px-3 py-2 rounded-lg border border-black bg-red-500 text-white hover:bg-red-600 transition font-bold"
+                            className="px-3 py-2 rounded-xl border font-bold bg-red-500 text-white hover:bg-red-600 transition"
                           >
                             Delete
                           </button>
                         </div>
                       </div>
 
-                      <div className="mt-3 text-xs opacity-70">
+                      <div className="mt-3 text-xs opacity-60">
                         Created: {new Date(worksheet.created_at).toLocaleString("tr-TR")}
                       </div>
                     </>
