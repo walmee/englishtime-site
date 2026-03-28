@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,7 @@ type QuestionMeta = {
 };
 
 type SortMode = "latest" | "highest" | "lowest";
+type NoticeTone = "error" | "info";
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -42,91 +43,63 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<HistoryRow[]>([]);
   const [quizMap, setQuizMap] = useState<Record<number, QuizMeta>>({});
-  const [attemptAnswersMap, setAttemptAnswersMap] = useState<Record<number, AttemptAnswerRow[]>>({});
+  const [attemptAnswersMap, setAttemptAnswersMap] = useState<Record<number, AttemptAnswerRow[]>>(
+    {}
+  );
   const [questionMap, setQuestionMap] = useState<Record<number, QuestionMeta>>({});
   const [openQuizId, setOpenQuizId] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("latest");
-  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [noticeTone, setNoticeTone] = useState<NoticeTone>("info");
 
-  const loadQuizMeta = async (rows: HistoryRow[]) => {
-    const quizIds = [...new Set(rows.map((r) => Number(r.quiz_id)).filter(Boolean))];
-
-    if (quizIds.length === 0) {
-      setQuizMap({});
-      return;
+  const getNoticeStyles = (tone: NoticeTone) => {
+    if (tone === "error") {
+      return {
+        wrapper: "bg-red-50 border-red-200 text-red-900",
+        title: "Issue",
+      };
     }
 
-    const { data, error } = await supabase
-      .from("quizzes")
-      .select("id, title, unit")
-      .in("id", quizIds);
-
-    if (error || !Array.isArray(data)) {
-      setQuizMap({});
-      return;
-    }
-
-    const map: Record<number, QuizMeta> = {};
-    for (const item of data as QuizMeta[]) {
-      map[item.id] = item;
-    }
-    setQuizMap(map);
+    return {
+      wrapper: "bg-sky-50 border-sky-200 text-sky-900",
+      title: "Info",
+    };
   };
 
-  const loadAttemptAnswers = async (studentId: string, rows: HistoryRow[]) => {
-    const quizIds = [...new Set(rows.map((r) => Number(r.quiz_id)).filter(Boolean))];
+  const sortedItems = useMemo(() => {
+    const list = [...items];
 
-    if (quizIds.length === 0) {
-      setAttemptAnswersMap({});
-      setQuestionMap({});
-      return;
+    if (sortMode === "highest") {
+      list.sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+    } else if (sortMode === "lowest") {
+      list.sort((a, b) => Number(a.score || 0) - Number(b.score || 0));
+    } else {
+      list.sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+      });
     }
 
-    const { data: answersData, error: answersError } = await supabase
-      .from("quiz_attempt_answers")
-      .select("quiz_id, question_id, selected_option, correct_option, is_correct")
-      .eq("student_id", studentId)
-      .in("quiz_id", quizIds);
+    return list;
+  }, [items, sortMode]);
 
-    if (answersError || !Array.isArray(answersData)) {
-      setAttemptAnswersMap({});
-      setQuestionMap({});
-      return;
-    }
+  const totalQuizzes = items.length;
 
-    const grouped: Record<number, AttemptAnswerRow[]> = {};
-    const questionIds: number[] = [];
+  const bestScore = useMemo(() => {
+    if (!items.length) return 0;
+    return Math.max(...items.map((item) => Number(item.score || 0)));
+  }, [items]);
 
-    for (const row of answersData as AttemptAnswerRow[]) {
-      if (!grouped[row.quiz_id]) grouped[row.quiz_id] = [];
-      grouped[row.quiz_id].push(row);
-      questionIds.push(Number(row.question_id));
-    }
-
-    setAttemptAnswersMap(grouped);
-
-    const uniqueQuestionIds = [...new Set(questionIds.filter(Boolean))];
-    if (uniqueQuestionIds.length === 0) {
-      setQuestionMap({});
-      return;
-    }
-
-    const { data: questionData, error: questionError } = await supabase
-      .from("questions")
-      .select("id, question_text, option_a, option_b, option_c, option_d")
-      .in("id", uniqueQuestionIds);
-
-    if (questionError || !Array.isArray(questionData)) {
-      setQuestionMap({});
-      return;
-    }
-
-    const qMap: Record<number, QuestionMeta> = {};
-    for (const q of questionData as QuestionMeta[]) {
-      qMap[q.id] = q;
-    }
-    setQuestionMap(qMap);
-  };
+  const latestScore = useMemo(() => {
+    if (!items.length) return 0;
+    const latest = [...items].sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    })[0];
+    return Number(latest?.score || 0);
+  }, [items]);
 
   const getQuizLabel = (quizId: number) => {
     const quiz = quizMap[quizId];
@@ -167,88 +140,90 @@ export default function HistoryPage() {
     return option;
   };
 
-  const sortedItems = useMemo(() => {
-    const list = [...items];
-
-    if (sortMode === "highest") {
-      list.sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
-    } else if (sortMode === "lowest") {
-      list.sort((a, b) => Number(a.score || 0) - Number(b.score || 0));
-    } else {
-      list.sort((a, b) => {
-        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return bTime - aTime;
-      });
-    }
-
-    return list;
-  }, [items, sortMode]);
-
-  const totalQuizzes = items.length;
-
-  const bestScore = useMemo(() => {
-    if (!items.length) return 0;
-    return Math.max(...items.map((item) => Number(item.score || 0)));
-  }, [items]);
-
-  const latestScore = useMemo(() => {
-    if (!items.length) return 0;
-    const latest = [...items].sort((a, b) => {
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return bTime - aTime;
-    })[0];
-    return Number(latest?.score || 0);
-  }, [items]);
-
   useEffect(() => {
     let mounted = true;
 
     const load = async () => {
       setLoading(true);
-      setError("");
+      setNotice("");
+      setNoticeTone("info");
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        router.push("/login");
+        router.replace("/login");
         return;
       }
 
-      const studentId = session.user.id;
+      const accessToken = session.access_token;
 
-      const { data, error } = await supabase
-        .from("leaderboard")
-        .select("student_id, quiz_id, score, created_at")
-        .eq("student_id", studentId)
-        .order("created_at", { ascending: false })
-        .limit(50);
+      try {
+        const res = await fetch("/api/student/history", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
 
-      if (!mounted) return;
+        const text = await res.text();
+        const json = text ? JSON.parse(text) : {};
 
-      if (error) {
-        setError(error.message);
+        if (!mounted) return;
+
+        if (!res.ok) {
+          setNotice(json?.error || "History could not be loaded.");
+          setNoticeTone("error");
+          setItems([]);
+          setQuizMap({});
+          setAttemptAnswersMap({});
+          setQuestionMap({});
+          setLoading(false);
+          return;
+        }
+
+        const historyRows = Array.isArray(json?.history) ? (json.history as HistoryRow[]) : [];
+        const quizzes = Array.isArray(json?.quizzes) ? (json.quizzes as QuizMeta[]) : [];
+        const attemptAnswers = Array.isArray(json?.attemptAnswers)
+          ? (json.attemptAnswers as AttemptAnswerRow[])
+          : [];
+        const questions = Array.isArray(json?.questions)
+          ? (json.questions as QuestionMeta[])
+          : [];
+
+        setItems(historyRows);
+
+        const quizMetaMap: Record<number, QuizMeta> = {};
+        quizzes.forEach((item) => {
+          quizMetaMap[item.id] = item;
+        });
+        setQuizMap(quizMetaMap);
+
+        const groupedAnswers: Record<number, AttemptAnswerRow[]> = {};
+        attemptAnswers.forEach((row) => {
+          if (!groupedAnswers[row.quiz_id]) groupedAnswers[row.quiz_id] = [];
+          groupedAnswers[row.quiz_id].push(row);
+        });
+        setAttemptAnswersMap(groupedAnswers);
+
+        const qMap: Record<number, QuestionMeta> = {};
+        questions.forEach((q) => {
+          qMap[q.id] = q;
+        });
+        setQuestionMap(qMap);
+
+        setLoading(false);
+      } catch (e: any) {
+        if (!mounted) return;
+
+        setNotice(e?.message || "History could not be loaded.");
+        setNoticeTone("error");
         setItems([]);
         setQuizMap({});
         setAttemptAnswersMap({});
         setQuestionMap({});
         setLoading(false);
-        return;
       }
-
-      const rows = Array.isArray(data) ? (data as HistoryRow[]) : [];
-      setItems(rows);
-
-      await Promise.all([
-        loadQuizMeta(rows),
-        loadAttemptAnswers(studentId, rows),
-      ]);
-
-      if (!mounted) return;
-      setLoading(false);
     };
 
     load();
@@ -257,6 +232,8 @@ export default function HistoryPage() {
       mounted = false;
     };
   }, [router]);
+
+  const noticeStyles = getNoticeStyles(noticeTone);
 
   return (
     <div
@@ -271,10 +248,10 @@ export default function HistoryPage() {
           <h2 className="text-2xl font-bold mb-2">History</h2>
           <p className="mb-6">Review your completed quizzes and mistakes.</p>
 
-          {error ? (
-            <div className="mb-4 bg-red-100 border border-black rounded-xl p-4">
-              <p className="font-bold">Error</p>
-              <p className="text-sm break-words">{error}</p>
+          {notice ? (
+            <div className={`mb-4 border rounded-xl p-4 ${noticeStyles.wrapper}`}>
+              <p className="font-bold">{noticeStyles.title}</p>
+              <p className="text-sm break-words">{notice}</p>
             </div>
           ) : null}
 
@@ -354,14 +331,14 @@ export default function HistoryPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {sortedItems.map((item) => {
+                  {sortedItems.map((item, index) => {
                     const wrongAnswers =
                       (attemptAnswersMap[item.quiz_id] || []).filter((a) => !a.is_correct) || [];
                     const isOpen = openQuizId === item.quiz_id;
 
                     return (
                       <div
-                        key={`${item.student_id}-${item.quiz_id}`}
+                        key={`${item.student_id}-${item.quiz_id}-${index}`}
                         className="border border-black rounded-xl p-4"
                         style={{ backgroundColor: "var(--bg-soft)" }}
                       >
@@ -394,9 +371,7 @@ export default function HistoryPage() {
                             </span>
 
                             <button
-                              onClick={() =>
-                                setOpenQuizId(isOpen ? null : item.quiz_id)
-                              }
+                              onClick={() => setOpenQuizId(isOpen ? null : item.quiz_id)}
                               className="text-xs px-3 py-1 rounded-md border border-black shrink-0 font-bold transition"
                               style={{
                                 backgroundColor: isOpen
@@ -417,24 +392,26 @@ export default function HistoryPage() {
                                 Great job — no wrong answers were saved for this quiz.
                               </div>
                             ) : (
-                              wrongAnswers.map((wrong, index) => (
+                              wrongAnswers.map((wrong, wrongIndex) => (
                                 <div
-                                  key={`${wrong.quiz_id}-${wrong.question_id}`}
+                                  key={`${wrong.quiz_id}-${wrong.question_id}-${wrongIndex}`}
                                   className="border border-black rounded-lg p-4"
                                   style={{ backgroundColor: "var(--bg-card)" }}
                                 >
                                   <p className="font-bold mb-2">
-                                    Wrong Question {index + 1}
+                                    Wrong Question {wrongIndex + 1}
                                   </p>
                                   <p className="text-sm break-words mb-3">
                                     {questionMap[wrong.question_id]?.question_text ||
                                       "Question text not found."}
                                   </p>
                                   <p className="text-sm break-words">
-                                    <b>Your answer:</b> {getOptionText(wrong.question_id, wrong.selected_option)}
+                                    <b>Your answer:</b>{" "}
+                                    {getOptionText(wrong.question_id, wrong.selected_option)}
                                   </p>
                                   <p className="text-sm break-words">
-                                    <b>Correct answer:</b> {getOptionText(wrong.question_id, wrong.correct_option)}
+                                    <b>Correct answer:</b>{" "}
+                                    {getOptionText(wrong.question_id, wrong.correct_option)}
                                   </p>
                                 </div>
                               ))
