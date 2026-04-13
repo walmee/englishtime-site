@@ -101,6 +101,12 @@ export default function HistoryPage() {
     return Number(latest?.score || 0);
   }, [items]);
 
+  const averageScore = useMemo(() => {
+    if (!items.length) return 0;
+    const total = items.reduce((sum, item) => sum + Number(item.score || 0), 0);
+    return Math.round(total / items.length);
+  }, [items]);
+
   const getQuizLabel = (quizId: number) => {
     const quiz = quizMap[quizId];
     if (!quiz) return "Quiz";
@@ -237,195 +243,221 @@ export default function HistoryPage() {
 
   return (
     <div
-      className="min-h-screen w-full overflow-x-hidden text-black"
-      style={{ backgroundColor: "var(--bg-main)", color: "var(--text-main)" }}
+      className="min-h-screen w-full overflow-x-hidden"
+      style={{ backgroundColor: "#f5f5f5", color: "#111111" }}
     >
       <main className="w-full px-3 py-6 md:max-w-6xl md:mx-auto overflow-x-hidden space-y-6">
-        <div
-          className="border border-black rounded-2xl p-6"
-          style={{ backgroundColor: "var(--bg-card)" }}
-        >
+        <div className="rounded-3xl border bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-bold mb-2">History</h2>
-          <p className="mb-6">Review your completed quizzes and mistakes.</p>
+          <p className="text-sm opacity-80 mb-6">
+            Review your completed quizzes, scores, and mistakes.
+          </p>
 
           {notice ? (
-            <div className={`mb-4 border rounded-xl p-4 ${noticeStyles.wrapper}`}>
+            <div className={`mb-4 border rounded-2xl p-4 ${noticeStyles.wrapper}`}>
               <p className="font-bold">{noticeStyles.title}</p>
               <p className="text-sm break-words">{notice}</p>
             </div>
           ) : null}
 
+          {!loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-2xl border bg-neutral-50 p-4">
+                <div className="text-xs opacity-60">Total Quizzes</div>
+                <div className="text-2xl font-bold mt-1">{totalQuizzes}</div>
+              </div>
+
+              <div className="rounded-2xl border bg-neutral-50 p-4">
+                <div className="text-xs opacity-60">Best Score</div>
+                <div className="text-2xl font-bold mt-1">{bestScore}%</div>
+              </div>
+
+              <div className="rounded-2xl border bg-neutral-50 p-4">
+                <div className="text-xs opacity-60">Average Score</div>
+                <div className="text-2xl font-bold mt-1">{averageScore}%</div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-3xl border bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div>
+              <h3 className="text-xl font-bold">Quiz Attempts</h3>
+              <p className="text-sm opacity-70 mt-1">
+                Open each quiz to review incorrect answers.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSortMode("latest")}
+                className="px-4 py-2 rounded-xl border font-bold transition"
+                style={{
+                  backgroundColor: sortMode === "latest" ? "#facc15" : "#ffffff",
+                  color: "#111111",
+                  borderColor: "#111111",
+                }}
+              >
+                Latest
+              </button>
+
+              <button
+                onClick={() => setSortMode("highest")}
+                className="px-4 py-2 rounded-xl border font-bold transition"
+                style={{
+                  backgroundColor: sortMode === "highest" ? "#facc15" : "#ffffff",
+                  color: "#111111",
+                  borderColor: "#111111",
+                }}
+              >
+                Highest
+              </button>
+
+              <button
+                onClick={() => setSortMode("lowest")}
+                className="px-4 py-2 rounded-xl border font-bold transition"
+                style={{
+                  backgroundColor: sortMode === "lowest" ? "#facc15" : "#ffffff",
+                  color: "#111111",
+                  borderColor: "#111111",
+                }}
+              >
+                Lowest
+              </button>
+            </div>
+          </div>
+
           {loading ? (
-            <div className="border border-dashed border-black rounded-lg p-6 text-center">
+            <div className="rounded-2xl border border-dashed p-8 text-center">
               Loading history...
             </div>
+          ) : sortedItems.length === 0 ? (
+            <div className="rounded-2xl border border-dashed p-8 text-center">
+              No quiz history yet.
+            </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div
-                  className="border border-black rounded-xl p-4"
-                  style={{ backgroundColor: "var(--bg-soft)" }}
-                >
-                  <p className="text-sm opacity-80">Total Quizzes</p>
-                  <p className="text-3xl font-bold">{totalQuizzes}</p>
-                </div>
+            <div className="space-y-4">
+              {sortedItems.map((item, index) => {
+                const wrongAnswers =
+                  (attemptAnswersMap[item.quiz_id] || []).filter((a) => !a.is_correct) || [];
+                const isOpen = openQuizId === item.quiz_id;
+                const score = Number(item.score || 0);
 
-                <div
-                  className="border border-black rounded-xl p-4"
-                  style={{ backgroundColor: "var(--bg-soft)" }}
-                >
-                  <p className="text-sm opacity-80">Best Score</p>
-                  <p className="text-3xl font-bold">{bestScore}%</p>
-                </div>
-
-                <div
-                  className="border border-black rounded-xl p-4"
-                  style={{ backgroundColor: "var(--bg-soft)" }}
-                >
-                  <p className="text-sm opacity-80">Latest Score</p>
-                  <p className="text-3xl font-bold">{latestScore}%</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-6">
-                <button
-                  onClick={() => setSortMode("latest")}
-                  className="px-4 py-2 rounded-lg border border-black font-bold transition"
-                  style={{
-                    backgroundColor:
-                      sortMode === "latest" ? "var(--bg-button)" : "var(--bg-soft)",
-                    color: "var(--text-main)",
-                  }}
-                >
-                  Latest
-                </button>
-
-                <button
-                  onClick={() => setSortMode("highest")}
-                  className="px-4 py-2 rounded-lg border border-black font-bold transition"
-                  style={{
-                    backgroundColor:
-                      sortMode === "highest" ? "var(--bg-button)" : "var(--bg-soft)",
-                    color: "var(--text-main)",
-                  }}
-                >
-                  Highest
-                </button>
-
-                <button
-                  onClick={() => setSortMode("lowest")}
-                  className="px-4 py-2 rounded-lg border border-black font-bold transition"
-                  style={{
-                    backgroundColor:
-                      sortMode === "lowest" ? "var(--bg-button)" : "var(--bg-soft)",
-                    color: "var(--text-main)",
-                  }}
-                >
-                  Lowest
-                </button>
-              </div>
-
-              {sortedItems.length === 0 ? (
-                <div className="border border-dashed border-black rounded-lg p-6 text-center">
-                  No quiz history yet.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {sortedItems.map((item, index) => {
-                    const wrongAnswers =
-                      (attemptAnswersMap[item.quiz_id] || []).filter((a) => !a.is_correct) || [];
-                    const isOpen = openQuizId === item.quiz_id;
-
-                    return (
-                      <div
-                        key={`${item.student_id}-${item.quiz_id}-${index}`}
-                        className="border border-black rounded-xl p-4"
-                        style={{ backgroundColor: "var(--bg-soft)" }}
-                      >
-                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-lg break-words">
-                              {getQuizLabel(item.quiz_id)}
-                            </p>
-                            <p className="text-sm mt-1">Score: {item.score}%</p>
-                            <p className="text-xs break-words mt-1">
-                              {item.created_at
-                                ? new Date(item.created_at).toLocaleString()
-                                : "No date"}
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <span
-                              className="text-xs px-3 py-1 rounded-md border border-black shrink-0 font-bold"
-                              style={getScoreBadgeStyle(Number(item.score || 0))}
-                            >
-                              {getScoreLabel(Number(item.score || 0))}
-                            </span>
-
-                            <span
-                              className="text-xs px-3 py-1 rounded-md border border-black shrink-0"
-                              style={{ backgroundColor: "var(--bg-button)" }}
-                            >
-                              Completed
-                            </span>
-
-                            <button
-                              onClick={() => setOpenQuizId(isOpen ? null : item.quiz_id)}
-                              className="text-xs px-3 py-1 rounded-md border border-black shrink-0 font-bold transition"
-                              style={{
-                                backgroundColor: isOpen
-                                  ? "var(--bg-button)"
-                                  : "var(--bg-card)",
-                                color: "var(--text-main)",
-                              }}
-                            >
-                              {isOpen ? "Hide Mistakes" : "View Mistakes"}
-                            </button>
-                          </div>
-                        </div>
-
-                        {isOpen ? (
-                          <div className="mt-4 border-t border-black pt-4 space-y-3">
-                            {wrongAnswers.length === 0 ? (
-                              <div className="border border-dashed border-black rounded-lg p-4 text-sm">
-                                Great job — no wrong answers were saved for this quiz.
-                              </div>
-                            ) : (
-                              wrongAnswers.map((wrong, wrongIndex) => (
-                                <div
-                                  key={`${wrong.quiz_id}-${wrong.question_id}-${wrongIndex}`}
-                                  className="border border-black rounded-lg p-4"
-                                  style={{ backgroundColor: "var(--bg-card)" }}
-                                >
-                                  <p className="font-bold mb-2">
-                                    Wrong Question {wrongIndex + 1}
-                                  </p>
-                                  <p className="text-sm break-words mb-3">
-                                    {questionMap[wrong.question_id]?.question_text ||
-                                      "Question text not found."}
-                                  </p>
-                                  <p className="text-sm break-words">
-                                    <b>Your answer:</b>{" "}
-                                    {getOptionText(wrong.question_id, wrong.selected_option)}
-                                  </p>
-                                  <p className="text-sm break-words">
-                                    <b>Correct answer:</b>{" "}
-                                    {getOptionText(wrong.question_id, wrong.correct_option)}
-                                  </p>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        ) : null}
+                return (
+                  <div
+                    key={`${item.student_id}-${item.quiz_id}-${index}`}
+                    className="rounded-2xl border p-5 shadow-sm"
+                    style={{ backgroundColor: "#ffffff", borderColor: "#e5e5e5" }}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="text-xs opacity-60 mb-2">Quiz Attempt</div>
+                        <p className="font-bold text-lg break-words">
+                          {getQuizLabel(item.quiz_id)}
+                        </p>
+                        <p className="text-sm opacity-70 mt-2 break-words">
+                          {item.created_at
+                            ? new Date(item.created_at).toLocaleString()
+                            : "No date"}
+                        </p>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span
+                          className="text-xs px-3 py-1 rounded-xl border shrink-0 font-bold"
+                          style={getScoreBadgeStyle(score)}
+                        >
+                          {getScoreLabel(score)}
+                        </span>
+
+                        <span className="text-xs px-3 py-1 rounded-xl border bg-neutral-50 shrink-0">
+                          Score: {score}%
+                        </span>
+
+                        <span className="text-xs px-3 py-1 rounded-xl border bg-neutral-50 shrink-0">
+                          Wrong: {wrongAnswers.length}
+                        </span>
+
+                        <button
+                          onClick={() => setOpenQuizId(isOpen ? null : item.quiz_id)}
+                          className="px-4 py-2 rounded-xl border font-bold transition"
+                          style={{
+                            backgroundColor: isOpen ? "#facc15" : "#ffffff",
+                            color: "#111111",
+                            borderColor: "#111111",
+                          }}
+                        >
+                          {isOpen ? "Hide Mistakes" : "View Mistakes"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isOpen ? (
+                      <div className="mt-5 border-t pt-5 space-y-4" style={{ borderColor: "#e5e5e5" }}>
+                        {wrongAnswers.length === 0 ? (
+                          <div className="rounded-2xl border border-dashed p-5 text-sm bg-neutral-50">
+                            Great job — no wrong answers were saved for this quiz.
+                          </div>
+                        ) : (
+                          wrongAnswers.map((wrong, wrongIndex) => (
+                            <div
+                              key={`${wrong.quiz_id}-${wrong.question_id}-${wrongIndex}`}
+                              className="rounded-2xl border p-5"
+                              style={{ backgroundColor: "#fafafa", borderColor: "#e5e5e5" }}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                <p className="font-bold">Wrong Question {wrongIndex + 1}</p>
+                                <span className="text-xs px-3 py-1 rounded-xl border bg-red-50 text-red-900 border-red-200">
+                                  Incorrect
+                                </span>
+                              </div>
+
+                              <p className="text-sm break-words mb-4 leading-6">
+                                {questionMap[wrong.question_id]?.question_text ||
+                                  "Question text not found."}
+                              </p>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="rounded-2xl border bg-red-50 border-red-200 p-4">
+                                  <div className="text-xs opacity-70 mb-2">Your Answer</div>
+                                  <div className="font-semibold break-words">
+                                    {getOptionText(wrong.question_id, wrong.selected_option)}
+                                  </div>
+                                </div>
+
+                                <div className="rounded-2xl border bg-emerald-50 border-emerald-200 p-4">
+                                  <div className="text-xs opacity-70 mb-2">Correct Answer</div>
+                                  <div className="font-semibold break-words">
+                                    {getOptionText(wrong.question_id, wrong.correct_option)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
+
+        {!loading && items.length > 0 ? (
+          <div className="rounded-3xl border bg-white p-6 shadow-sm">
+            <h3 className="text-xl font-bold mb-2">Latest Result</h3>
+            <p className="text-sm opacity-70 mb-4">
+              Your most recent saved score is shown below.
+            </p>
+
+            <div className="rounded-2xl border bg-neutral-50 p-5">
+              <div className="text-xs opacity-60">Latest Score</div>
+              <div className="text-3xl font-extrabold mt-1">{latestScore}%</div>
+            </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );
