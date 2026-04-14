@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
+import { unstable_noStore as noStore } from "next/cache";
 
 type HomeHighlightRow = {
   id: number;
@@ -15,6 +16,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
 async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
+  noStore();
+
   if (!supabaseUrl || !supabaseAnonKey) return [];
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -32,6 +35,8 @@ async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
 }
 
 export default async function HomePage() {
+  noStore();
+
   const highlights = await getHomeHighlights();
 
   const fallbackHighlights: HomeHighlightRow[] = [
