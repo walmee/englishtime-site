@@ -1,6 +1,75 @@
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
-export default function HomePage() {
+type HomeHighlightRow = {
+  id: number;
+  card_key: string;
+  label: string;
+  title: string;
+  description: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return [];
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+  const { data, error } = await supabase
+    .from("home_highlights")
+    .select("id, card_key, label, title, description, sort_order, is_active")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .limit(3);
+
+  if (error || !Array.isArray(data)) {
+    return [];
+  }
+
+  return data as HomeHighlightRow[];
+}
+
+export default async function HomePage() {
+  const highlights = await getHomeHighlights();
+
+  const fallbackHighlights = [
+    {
+      id: 1,
+      card_key: "today_1",
+      label: "Announcement",
+      title: "Speaking Club - Friday 19:30",
+      description: "Please follow your teacher's instructions for participation.",
+      sort_order: 1,
+      is_active: true,
+    },
+    {
+      id: 2,
+      card_key: "today_2",
+      label: "Word of the Day",
+      title: "Improve",
+      description: "To make something better.",
+      sort_order: 2,
+      is_active: true,
+    },
+    {
+      id: 3,
+      card_key: "today_3",
+      label: "Reading of the Day",
+      title: "B1 Reading Practice",
+      description: "Open short reading texts prepared for your level.",
+      sort_order: 3,
+      is_active: true,
+    },
+  ];
+
+  const todayCards = highlights.length > 0 ? highlights : fallbackHighlights;
+
   return (
     <div
       className="min-h-screen"
@@ -50,44 +119,21 @@ export default function HomePage() {
             <h2 className="text-2xl font-bold mb-4">What&apos;s Happening Today?</h2>
 
             <div className="space-y-4">
-              <div
-                className="rounded-2xl border border-black/10 p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <p className="text-sm" style={{ color: "var(--text-soft)" }}>
-                  Announcement
-                </p>
-                <p className="font-bold mt-1">Speaking Club - Friday 19:30</p>
-                <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                  Please follow your teacher&apos;s instructions for participation.
-                </p>
-              </div>
-
-              <div
-                className="rounded-2xl border border-black/10 p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <p className="text-sm" style={{ color: "var(--text-soft)" }}>
-                  Word of the Day
-                </p>
-                <p className="font-bold mt-1 text-xl">Improve</p>
-                <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                  To make something better.
-                </p>
-              </div>
-
-              <div
-                className="rounded-2xl border border-black/10 p-4"
-                style={{ backgroundColor: "var(--bg-soft)" }}
-              >
-                <p className="text-sm" style={{ color: "var(--text-soft)" }}>
-                  Reading of the Day
-                </p>
-                <p className="font-bold mt-1">B1 Reading Practice</p>
-                <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                  Open short reading texts prepared for your level.
-                </p>
-              </div>
+              {todayCards.map((item) => (
+                <div
+                  key={item.card_key}
+                  className="rounded-2xl border border-black/10 p-4"
+                  style={{ backgroundColor: "var(--bg-soft)" }}
+                >
+                  <p className="text-sm" style={{ color: "var(--text-soft)" }}>
+                    {item.label}
+                  </p>
+                  <p className="font-bold mt-1">{item.title}</p>
+                  <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
+                    {item.description}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
