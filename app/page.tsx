@@ -15,9 +15,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
 async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return [];
-  }
+  if (!supabaseUrl || !supabaseAnonKey) return [];
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -28,9 +26,7 @@ async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
     .order("sort_order", { ascending: true })
     .limit(3);
 
-  if (error || !Array.isArray(data)) {
-    return [];
-  }
+  if (error || !Array.isArray(data)) return [];
 
   return data as HomeHighlightRow[];
 }
@@ -38,7 +34,7 @@ async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
 export default async function HomePage() {
   const highlights = await getHomeHighlights();
 
-  const fallbackHighlights = [
+  const fallbackHighlights: HomeHighlightRow[] = [
     {
       id: 1,
       card_key: "today_1",
