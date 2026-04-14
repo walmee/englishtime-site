@@ -12,15 +12,45 @@ type HomeHighlightRow = {
   is_active: boolean;
 };
 
+type HomeAnnouncementRow = {
+  id: number;
+  title: string;
+  description: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+type HomeWordRow = {
+  id: number;
+  word: string;
+  meaning: string;
+  example_sentence: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+type HomeActivityRow = {
+  id: number;
+  title: string;
+  description_line_1: string | null;
+  description_line_2: string | null;
+  sort_order: number;
+  is_active: boolean;
+};
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+function getSupabase() {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
 
 async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
   noStore();
 
-  if (!supabaseUrl || !supabaseAnonKey) return [];
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const supabase = getSupabase();
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("home_highlights")
@@ -30,14 +60,71 @@ async function getHomeHighlights(): Promise<HomeHighlightRow[]> {
     .limit(3);
 
   if (error || !Array.isArray(data)) return [];
-
   return data as HomeHighlightRow[];
+}
+
+async function getHomeAnnouncements(): Promise<HomeAnnouncementRow[]> {
+  noStore();
+
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("home_announcements")
+    .select("id, title, description, sort_order, is_active")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .limit(3);
+
+  if (error || !Array.isArray(data)) return [];
+  return data as HomeAnnouncementRow[];
+}
+
+async function getHomeWords(): Promise<HomeWordRow[]> {
+  noStore();
+
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("home_words")
+    .select("id, word, meaning, example_sentence, sort_order, is_active")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .limit(3);
+
+  if (error || !Array.isArray(data)) return [];
+  return data as HomeWordRow[];
+}
+
+async function getHomeActivities(): Promise<HomeActivityRow[]> {
+  noStore();
+
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("home_activities")
+    .select(
+      "id, title, description_line_1, description_line_2, sort_order, is_active"
+    )
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .limit(3);
+
+  if (error || !Array.isArray(data)) return [];
+  return data as HomeActivityRow[];
 }
 
 export default async function HomePage() {
   noStore();
 
-  const highlights = await getHomeHighlights();
+  const [highlights, announcements, words, activities] = await Promise.all([
+    getHomeHighlights(),
+    getHomeAnnouncements(),
+    getHomeWords(),
+    getHomeActivities(),
+  ]);
 
   const fallbackHighlights: HomeHighlightRow[] = [
     {
@@ -69,7 +156,89 @@ export default async function HomePage() {
     },
   ];
 
+  const fallbackAnnouncements: HomeAnnouncementRow[] = [
+    {
+      id: 1,
+      title: "Speaking Club",
+      description: "This week's speaking club activity will be held on Friday.",
+      sort_order: 1,
+      is_active: true,
+    },
+    {
+      id: 2,
+      title: "Worksheet Submission",
+      description: "Don't forget to check worksheet submission deadlines.",
+      sort_order: 2,
+      is_active: true,
+    },
+    {
+      id: 3,
+      title: "Weekly Quiz",
+      description: "Weekly quizzes will be available through the student panel.",
+      sort_order: 3,
+      is_active: true,
+    },
+  ];
+
+  const fallbackWords: HomeWordRow[] = [
+    {
+      id: 1,
+      word: "Improve",
+      meaning: "to make better",
+      example_sentence: "I want to improve my English.",
+      sort_order: 1,
+      is_active: true,
+    },
+    {
+      id: 2,
+      word: "Practice",
+      meaning: "to do again and again",
+      example_sentence: "You should practice every day.",
+      sort_order: 2,
+      is_active: true,
+    },
+    {
+      id: 3,
+      word: "Confident",
+      meaning: "feeling sure",
+      example_sentence: "She feels confident in speaking.",
+      sort_order: 3,
+      is_active: true,
+    },
+  ];
+
+  const fallbackActivities: HomeActivityRow[] = [
+    {
+      id: 1,
+      title: "Speaking Club",
+      description_line_1: "Friday - 19:30",
+      description_line_2: "For B1 / B2 students",
+      sort_order: 1,
+      is_active: true,
+    },
+    {
+      id: 2,
+      title: "California Class",
+      description_line_1: "Special worksheets and quiz content for the B2 class",
+      description_line_2: "",
+      sort_order: 2,
+      is_active: true,
+    },
+    {
+      id: 3,
+      title: "Weekly Event",
+      description_line_1: "New reading and vocabulary activities every week",
+      description_line_2: "",
+      sort_order: 3,
+      is_active: true,
+    },
+  ];
+
   const todayCards = highlights.length > 0 ? highlights : fallbackHighlights;
+  const announcementCards =
+    announcements.length > 0 ? announcements : fallbackAnnouncements;
+  const wordCards = words.length > 0 ? words : fallbackWords;
+  const activityCards = activities.length > 0 ? activities : fallbackActivities;
 
   return (
     <div
@@ -150,35 +319,18 @@ export default async function HomePage() {
           </p>
 
           <div className="grid md:grid-cols-3 gap-4">
-            <div
-              className="rounded-2xl border border-black/10 p-5"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <h3 className="font-bold">Speaking Club</h3>
-              <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                This week&apos;s speaking club activity will be held on Friday.
-              </p>
-            </div>
-
-            <div
-              className="rounded-2xl border border-black/10 p-5"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <h3 className="font-bold">Worksheet Submission</h3>
-              <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                Don&apos;t forget to check worksheet submission deadlines.
-              </p>
-            </div>
-
-            <div
-              className="rounded-2xl border border-black/10 p-5"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <h3 className="font-bold">Weekly Quiz</h3>
-              <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                Weekly quizzes will be available through the student panel.
-              </p>
-            </div>
+            {announcementCards.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-black/10 p-5"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
+                <h3 className="font-bold">{item.title}</h3>
+                <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
+                  {item.description}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -190,38 +342,19 @@ export default async function HomePage() {
           <h2 className="text-3xl font-bold mb-4">Words of the Day</h2>
 
           <div className="grid md:grid-cols-3 gap-4">
-            <div
-              className="rounded-2xl border border-black/10 p-5"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <p className="text-2xl font-bold">Improve</p>
-              <p className="text-sm mt-1" style={{ color: "var(--text-soft)" }}>
-                to make better
-              </p>
-              <p className="mt-3 text-sm">I want to improve my English.</p>
-            </div>
-
-            <div
-              className="rounded-2xl border border-black/10 p-5"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <p className="text-2xl font-bold">Practice</p>
-              <p className="text-sm mt-1" style={{ color: "var(--text-soft)" }}>
-                to do again and again
-              </p>
-              <p className="mt-3 text-sm">You should practice every day.</p>
-            </div>
-
-            <div
-              className="rounded-2xl border border-black/10 p-5"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <p className="text-2xl font-bold">Confident</p>
-              <p className="text-sm mt-1" style={{ color: "var(--text-soft)" }}>
-                feeling sure
-              </p>
-              <p className="mt-3 text-sm">She feels confident in speaking.</p>
-            </div>
+            {wordCards.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-black/10 p-5"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
+                <p className="text-2xl font-bold">{item.word}</p>
+                <p className="text-sm mt-1" style={{ color: "var(--text-soft)" }}>
+                  {item.meaning}
+                </p>
+                <p className="mt-3 text-sm">{item.example_sentence}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -276,38 +409,27 @@ export default async function HomePage() {
           </p>
 
           <div className="grid md:grid-cols-3 gap-4">
-            <div
-              className="rounded-2xl border border-black/10 p-5 min-h-[180px]"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <h3 className="font-bold text-lg">Speaking Club</h3>
-              <p className="text-sm mt-3" style={{ color: "var(--text-soft)" }}>
-                Friday - 19:30
-              </p>
-              <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
-                For B1 / B2 students
-              </p>
-            </div>
+            {activityCards.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-black/10 p-5 min-h-[180px]"
+                style={{ backgroundColor: "var(--bg-soft)" }}
+              >
+                <h3 className="font-bold text-lg">{item.title}</h3>
 
-            <div
-              className="rounded-2xl border border-black/10 p-5 min-h-[180px]"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <h3 className="font-bold text-lg">California Class</h3>
-              <p className="text-sm mt-3" style={{ color: "var(--text-soft)" }}>
-                Special worksheets and quiz content for the B2 class
-              </p>
-            </div>
+                {item.description_line_1 ? (
+                  <p className="text-sm mt-3" style={{ color: "var(--text-soft)" }}>
+                    {item.description_line_1}
+                  </p>
+                ) : null}
 
-            <div
-              className="rounded-2xl border border-black/10 p-5 min-h-[180px]"
-              style={{ backgroundColor: "var(--bg-soft)" }}
-            >
-              <h3 className="font-bold text-lg">Weekly Event</h3>
-              <p className="text-sm mt-3" style={{ color: "var(--text-soft)" }}>
-                New reading and vocabulary activities every week
-              </p>
-            </div>
+                {item.description_line_2 ? (
+                  <p className="text-sm mt-2" style={{ color: "var(--text-soft)" }}>
+                    {item.description_line_2}
+                  </p>
+                ) : null}
+              </div>
+            ))}
           </div>
         </section>
       </main>
