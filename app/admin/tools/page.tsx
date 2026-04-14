@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 
@@ -87,6 +87,13 @@ export default function AdminToolsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <ToolCard
+              title="Homepage Content"
+              description="Edit the What's Happening Today cards shown on the homepage."
+              href="/admin/tools/homepage-content"
+              badge="New"
+            />
+
             <ToolCard
               title="Quizzes"
               description="Create quizzes, set target level and class, and manage published tests."
