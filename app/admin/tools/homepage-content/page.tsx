@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
@@ -40,21 +40,57 @@ type HomeActivityRow = {
   is_active: boolean;
 };
 
+type NoticeTone = "info" | "error" | "success";
+
 export default function AdminHomepageContentPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<NoticeTone>("info");
 
   const [highlights, setHighlights] = useState<HomeHighlightRow[]>([]);
   const [announcements, setAnnouncements] = useState<HomeAnnouncementRow[]>([]);
   const [words, setWords] = useState<HomeWordRow[]>([]);
   const [activities, setActivities] = useState<HomeActivityRow[]>([]);
 
+  const sortedHighlights = useMemo(
+    () => [...highlights].sort((a, b) => a.sort_order - b.sort_order),
+    [highlights]
+  );
+
+  const sortedAnnouncements = useMemo(
+    () => [...announcements].sort((a, b) => a.sort_order - b.sort_order),
+    [announcements]
+  );
+
+  const sortedWords = useMemo(
+    () => [...words].sort((a, b) => a.sort_order - b.sort_order),
+    [words]
+  );
+
+  const sortedActivities = useMemo(
+    () => [...activities].sort((a, b) => a.sort_order - b.sort_order),
+    [activities]
+  );
+
+  const noticeClasses = useMemo(() => {
+    if (messageTone === "error") {
+      return "bg-red-50 border-red-200 text-red-900";
+    }
+
+    if (messageTone === "success") {
+      return "bg-emerald-50 border-emerald-200 text-emerald-900";
+    }
+
+    return "bg-sky-50 border-sky-200 text-sky-900";
+  }, [messageTone]);
+
   const loadData = async () => {
     setLoading(true);
     setMessage("");
+    setMessageTone("info");
 
     const {
       data: { session },
@@ -109,24 +145,28 @@ export default function AdminHomepageContentPage() {
 
     if (highlightsRes.error) {
       setMessage(highlightsRes.error.message);
+      setMessageTone("error");
       setLoading(false);
       return;
     }
 
     if (announcementsRes.error) {
       setMessage(announcementsRes.error.message);
+      setMessageTone("error");
       setLoading(false);
       return;
     }
 
     if (wordsRes.error) {
       setMessage(wordsRes.error.message);
+      setMessageTone("error");
       setLoading(false);
       return;
     }
 
     if (activitiesRes.error) {
       setMessage(activitiesRes.error.message);
+      setMessageTone("error");
       setLoading(false);
       return;
     }
@@ -186,6 +226,7 @@ export default function AdminHomepageContentPage() {
   const saveAll = async () => {
     setSaving(true);
     setMessage("");
+    setMessageTone("info");
 
     try {
       for (const row of highlights) {
@@ -203,6 +244,7 @@ export default function AdminHomepageContentPage() {
 
         if (error) {
           setMessage(error.message);
+          setMessageTone("error");
           setSaving(false);
           return;
         }
@@ -222,6 +264,7 @@ export default function AdminHomepageContentPage() {
 
         if (error) {
           setMessage(error.message);
+          setMessageTone("error");
           setSaving(false);
           return;
         }
@@ -242,6 +285,7 @@ export default function AdminHomepageContentPage() {
 
         if (error) {
           setMessage(error.message);
+          setMessageTone("error");
           setSaving(false);
           return;
         }
@@ -262,12 +306,15 @@ export default function AdminHomepageContentPage() {
 
         if (error) {
           setMessage(error.message);
+          setMessageTone("error");
           setSaving(false);
           return;
         }
       }
 
       setMessage("Homepage content updated successfully.");
+      setMessageTone("success");
+      await loadData();
     } finally {
       setSaving(false);
     }
@@ -287,9 +334,7 @@ export default function AdminHomepageContentPage() {
         </section>
 
         {message ? (
-          <div className="rounded-2xl border border-black bg-yellow-50 p-4">
-            {message}
-          </div>
+          <div className={`rounded-2xl border p-4 ${noticeClasses}`}>{message}</div>
         ) : null}
 
         {loading ? (
@@ -306,14 +351,37 @@ export default function AdminHomepageContentPage() {
                 </p>
               </div>
 
-              {highlights.map((row, index) => (
+              {sortedHighlights.map((row, index) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-black bg-yellow-50 p-5 space-y-4"
+                  className={`rounded-2xl border border-black p-5 space-y-4 ${
+                    row.is_active ? "bg-yellow-50" : "bg-neutral-200 opacity-80"
+                  }`}
                 >
-                  <div className="font-bold">Card {index + 1}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="font-bold">Card {index + 1}</div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      {!row.is_active ? (
+                        <span className="rounded-full border border-black bg-white px-3 py-1 text-xs font-bold">
+                          Hidden on homepage
+                        </span>
+                      ) : null}
+
+                      <label className="inline-flex items-center gap-2 text-sm font-bold">
+                        <input
+                          type="checkbox"
+                          checked={row.is_active}
+                          onChange={(e) =>
+                            updateHighlight(row.id, "is_active", e.target.checked)
+                          }
+                        />
+                        {row.is_active ? "Active" : "Passive"}
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_120px] gap-4">
                     <div>
                       <label className="block text-sm font-bold mb-2">Label</label>
                       <input
@@ -332,7 +400,19 @@ export default function AdminHomepageContentPage() {
                       />
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Sort Order</label>
+                      <input
+                        type="number"
+                        value={row.sort_order}
+                        onChange={(e) =>
+                          updateHighlight(row.id, "sort_order", Number(e.target.value))
+                        }
+                        className="w-full rounded-xl border border-black bg-white p-3"
+                      />
+                    </div>
+
+                    <div className="md:col-span-3">
                       <label className="block text-sm font-bold mb-2">Description</label>
                       <textarea
                         value={row.description}
@@ -355,14 +435,37 @@ export default function AdminHomepageContentPage() {
                 </p>
               </div>
 
-              {announcements.map((row, index) => (
+              {sortedAnnouncements.map((row, index) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-black bg-yellow-50 p-5 space-y-4"
+                  className={`rounded-2xl border border-black p-5 space-y-4 ${
+                    row.is_active ? "bg-yellow-50" : "bg-neutral-200 opacity-80"
+                  }`}
                 >
-                  <div className="font-bold">Announcement {index + 1}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="font-bold">Announcement {index + 1}</div>
 
-                  <div className="grid grid-cols-1 gap-4">
+                    <div className="flex items-center gap-3">
+                      {!row.is_active ? (
+                        <span className="rounded-full border border-black bg-white px-3 py-1 text-xs font-bold">
+                          Hidden on homepage
+                        </span>
+                      ) : null}
+
+                      <label className="inline-flex items-center gap-2 text-sm font-bold">
+                        <input
+                          type="checkbox"
+                          checked={row.is_active}
+                          onChange={(e) =>
+                            updateAnnouncement(row.id, "is_active", e.target.checked)
+                          }
+                        />
+                        {row.is_active ? "Active" : "Passive"}
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_120px] gap-4">
                     <div>
                       <label className="block text-sm font-bold mb-2">Title</label>
                       <input
@@ -375,6 +478,18 @@ export default function AdminHomepageContentPage() {
                     </div>
 
                     <div>
+                      <label className="block text-sm font-bold mb-2">Sort Order</label>
+                      <input
+                        type="number"
+                        value={row.sort_order}
+                        onChange={(e) =>
+                          updateAnnouncement(row.id, "sort_order", Number(e.target.value))
+                        }
+                        className="w-full rounded-xl border border-black bg-white p-3"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-bold mb-2">Description</label>
                       <textarea
                         value={row.description}
@@ -397,14 +512,35 @@ export default function AdminHomepageContentPage() {
                 </p>
               </div>
 
-              {words.map((row, index) => (
+              {sortedWords.map((row, index) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-black bg-yellow-50 p-5 space-y-4"
+                  className={`rounded-2xl border border-black p-5 space-y-4 ${
+                    row.is_active ? "bg-yellow-50" : "bg-neutral-200 opacity-80"
+                  }`}
                 >
-                  <div className="font-bold">Word {index + 1}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="font-bold">Word {index + 1}</div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      {!row.is_active ? (
+                        <span className="rounded-full border border-black bg-white px-3 py-1 text-xs font-bold">
+                          Hidden on homepage
+                        </span>
+                      ) : null}
+
+                      <label className="inline-flex items-center gap-2 text-sm font-bold">
+                        <input
+                          type="checkbox"
+                          checked={row.is_active}
+                          onChange={(e) => updateWord(row.id, "is_active", e.target.checked)}
+                        />
+                        {row.is_active ? "Active" : "Passive"}
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_120px] gap-4">
                     <div>
                       <label className="block text-sm font-bold mb-2">Word</label>
                       <input
@@ -423,7 +559,19 @@ export default function AdminHomepageContentPage() {
                       />
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Sort Order</label>
+                      <input
+                        type="number"
+                        value={row.sort_order}
+                        onChange={(e) =>
+                          updateWord(row.id, "sort_order", Number(e.target.value))
+                        }
+                        className="w-full rounded-xl border border-black bg-white p-3"
+                      />
+                    </div>
+
+                    <div className="md:col-span-3">
                       <label className="block text-sm font-bold mb-2">
                         Example Sentence
                       </label>
@@ -444,16 +592,55 @@ export default function AdminHomepageContentPage() {
               <div>
                 <h2 className="text-2xl font-bold">Speaking Club & Classes</h2>
                 <p className="text-sm opacity-80 mt-1">
-                  Edit the 3 activity cards.
+                  Edit the 3 activity cards. Passive ones will not appear on the student homepage.
                 </p>
               </div>
 
-              {activities.map((row, index) => (
+              {sortedActivities.map((row, index) => (
                 <div
                   key={row.id}
-                  className="rounded-2xl border border-black bg-yellow-50 p-5 space-y-4"
+                  className={`rounded-2xl border border-black p-5 space-y-4 transition ${
+                    row.is_active ? "bg-yellow-50" : "bg-neutral-200 opacity-80"
+                  }`}
                 >
-                  <div className="font-bold">Activity {index + 1}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="font-bold">Activity {index + 1}</div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      {!row.is_active ? (
+                        <span className="rounded-full border border-black bg-white px-3 py-1 text-xs font-bold">
+                          Hidden on homepage
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-black bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">
+                          Visible on homepage
+                        </span>
+                      )}
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Sort Order</label>
+                        <input
+                          type="number"
+                          value={row.sort_order}
+                          onChange={(e) =>
+                            updateActivity(row.id, "sort_order", Number(e.target.value))
+                          }
+                          className="w-24 rounded-xl border border-black bg-white p-2"
+                        />
+                      </div>
+
+                      <label className="inline-flex items-center gap-2 text-sm font-bold mt-5">
+                        <input
+                          type="checkbox"
+                          checked={row.is_active}
+                          onChange={(e) =>
+                            updateActivity(row.id, "is_active", e.target.checked)
+                          }
+                        />
+                        {row.is_active ? "Active" : "Passive"}
+                      </label>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 gap-4">
                     <div>
@@ -495,7 +682,14 @@ export default function AdminHomepageContentPage() {
               ))}
             </section>
 
-            <section className="rounded-3xl border border-black bg-yellow-100 p-6">
+            <section className="rounded-3xl border border-black bg-yellow-100 p-6 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="font-bold text-lg">Save Homepage Settings</div>
+                <div className="text-sm opacity-80 mt-1">
+                  All sections on this page will be updated together.
+                </div>
+              </div>
+
               <button
                 onClick={saveAll}
                 disabled={saving}
