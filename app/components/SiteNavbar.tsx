@@ -201,7 +201,18 @@ export default function SiteNavbar() {
         { key: "admin-writing", label: "Writing", href: "/teacher/writing" },
         { key: "admin-leaderboard", label: "Leaderboard", href: "/admin/leaderboard" },
         { key: "admin-quiz-insights", label: "Quiz Insights", href: "/admin/quiz-insights" },
-        { key: "admin-tools", label: "Tools", href: "/admin/tools" },
+        {
+          key: "admin-tools",
+          label: "Tools",
+          children: [
+            { key: "admin-tools-home", label: "Tools Home", href: "/admin/tools" },
+            {
+              key: "admin-tools-homepage-content",
+              label: "Homepage Content",
+              href: "/admin/tools/homepage-content",
+            },
+          ],
+        },
       ],
     },
     {
@@ -458,6 +469,41 @@ export default function SiteNavbar() {
                             >
                               {child.label}
                             </Link>
+                          ) : child.children ? (
+                            <div
+                              key={child.key}
+                              className="rounded-2xl border border-[#d7cfbe] bg-white p-3"
+                            >
+                              <p className="mb-2 text-sm font-bold text-[#6b6248]">
+                                {child.label}
+                              </p>
+
+                              <div className="grid grid-cols-1 gap-2">
+                                {child.children.map((sub) =>
+                                  sub.href ? (
+                                    <Link
+                                      key={sub.key}
+                                      href={sub.href}
+                                      className={mobileLinkClass(pathname === sub.href)}
+                                      onClick={() => setMobileOpen(false)}
+                                    >
+                                      {sub.label}
+                                    </Link>
+                                  ) : (
+                                    <button
+                                      key={sub.key}
+                                      onClick={() => {
+                                        sub.action?.();
+                                        setMobileOpen(false);
+                                      }}
+                                      className="rounded-2xl border border-[#d7cfbe] bg-white px-4 py-3 text-left font-medium text-black hover:bg-[#f5e7b8]"
+                                    >
+                                      {sub.label}
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            </div>
                           ) : (
                             <button
                               key={child.key}
@@ -552,7 +598,11 @@ function DesktopNavItem({
   setOpenSub: (v: string | null) => void;
 }) {
   const hasActiveChild =
-    item.children?.some((child) => child.href && pathname === child.href) ?? false;
+    item.children?.some((child) => {
+      if (child.href && pathname === child.href) return true;
+      if (child.children?.some((sub) => sub.href && pathname === sub.href)) return true;
+      return false;
+    }) ?? false;
 
   const active = item.href ? pathname === item.href : hasActiveChild;
 
