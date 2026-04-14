@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -234,6 +234,12 @@ export default function AdminPage() {
               title="Leaderboard"
               description="Review rankings and overall performance data."
               href="/admin/leaderboard"
+            />
+
+            <QuickLinkCard
+              title="Homepage Content"
+              description="Edit the cards shown in the What's Happening Today section on the homepage."
+              href="/admin/tools/homepage-content"
             />
 
             <QuickLinkCard
